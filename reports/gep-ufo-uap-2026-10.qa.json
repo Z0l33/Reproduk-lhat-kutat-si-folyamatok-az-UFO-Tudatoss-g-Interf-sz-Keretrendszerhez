@@ -538,7 +538,7 @@
     "7": 5,
     "8": 2
    },
-   "meaning_status": "UNVERIFIED: the name suggests an incomplete (truncated) postal code, but values with 4 or more digits and zero padding do not fit a 1-3 digit prefix reading. Consult the GEP documentation before any use of this field.",
+   "meaning_status": "UNVERIFIED. Heuristic reading: 1-3 digit values are compatible with a truncated postal code; 4 digit values are compatible with a truncated 5-digit German code but also with a complete 4-digit code of AT/CH and similar; 5 digit values look complete; values with 6 or more digits fit no postal format. The GEP documentation was not consulted. Do not use this field for analysis before that.",
    "non_digit_character_kinds_in_values": {
     "close_parenthesis": 1,
     "open_parenthesis": 1,
@@ -546,6 +546,14 @@
    },
    "not_digits_only": 1,
    "overlap_with_plz": 0,
+   "reading_bands": {
+    "1_to_3_digits": 279,
+    "4_digits": 95,
+    "4_digits_in_land_with_4_digit_postcodes": 0,
+    "5_digits": 9,
+    "6_or_more_digits": 6,
+    "facts": "length bands of digits-only values"
+   },
    "sichtungsort_filled_for_filled_rows": 390,
    "values_ending_with_zero_padding": {
     "ends_with_000": 1,
