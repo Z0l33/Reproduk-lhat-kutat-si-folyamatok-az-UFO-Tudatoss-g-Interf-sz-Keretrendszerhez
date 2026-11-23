@@ -18,6 +18,7 @@ Run: python observatory/a11y_report.py [--check]    (writes observatory/a11y-rep
 Real screen-reader behaviour (NVDA, VoiceOver) is a manual validation; static analysis cannot prove it.
 """
 import hashlib
+import datetime as _dt
 import json
 import platform
 import re
@@ -33,7 +34,7 @@ MANUAL_RESULTS = OBS / "a11y-manual-results.json"
 CLOSURE_FIELDS = ("result", "performed_by", "performed_on", "environment")
 CLOSURE_RULE = ("A MANUAL REQUIRED item is closed only by a human record in observatory/a11y-manual-results.json "
                 "({item id: {result, performed_by, performed_on (YYYY-MM-DD), environment (tool, version, device)}}). "
-                "All four fields must be non-empty; with any missing the item stays open. This script never closes an item "
+                "All four fields must be valid: non-placeholder strings, performed_on a real YYYY-MM-DD date, environment naming tool and version; with any invalid the item stays open and the problem is listed. A date in the future is not rejected, so the report stays reproducible. This script never closes an item "
                 "itself, and a closed item keeps the status MANUAL REQUIRED with done=true and its closure record shown. "
                 "A closed manual item does not turn NOT VERIFIED items into PASS; the overall status is PASS only when no "
                 "item is NOT VERIFIED and no manual item is open.")
@@ -52,6 +53,39 @@ CLAIM_NAMES = {
 }
 A_IDS = ["a01", "a02", "a03", "a04"]
 B_IDS = ["b-fact", "b-heur", "b-unv"]
+
+
+PLACEHOLDERS = {"", "-", "--", "n/a", "na", "none", "null", "tbd", "todo", "unknown", "x", "xx", "ok", "yes", "test", "?", "..."}
+
+
+def closure_problems(cl):
+    """Reason per invalid closure field. Dates must be real calendar dates, environments must name tool and version."""
+    if not isinstance(cl, dict):
+        return {f: "closure record must be an object" for f in CLOSURE_FIELDS}
+    out = {}
+    for f in CLOSURE_FIELDS:
+        v = cl.get(f)
+        if not isinstance(v, str):
+            out[f] = "missing or not a string"
+        elif v.strip().lower() in PLACEHOLDERS:
+            out[f] = "empty or placeholder value"
+    if "performed_on" not in out:
+        v = cl["performed_on"]
+        if v != v.strip() or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", v):
+            out["performed_on"] = "must be YYYY-MM-DD"
+        else:
+            try:
+                _dt.date.fromisoformat(v)
+            except ValueError:
+                out["performed_on"] = "not a real calendar date"
+    if "environment" not in out:
+        v = cl["environment"].strip()
+        if len(v) < 8 or not re.search(r"\d", v) or not re.search(r"[A-Za-z]", v):
+            out["environment"] = "must name the tool/browser/device and a version (letters and a digit, at least 8 characters)"
+    for f in ("result", "performed_by"):
+        if f not in out and len(cl[f].strip()) < 3:
+            out[f] = "too short"
+    return out
 
 
 class CheckFailed(AssertionError):
@@ -327,14 +361,14 @@ def normalize_item(item):
             notes.append("MANUAL REQUIRED without a description of the human check")
             st = NOTVER
         else:
-            cl = item.get("closure") or {}
-            done = isinstance(cl, dict) and all(str(cl.get(f, "")).strip() for f in CLOSURE_FIELDS)
+            cl = item.get("closure")
+            problems = closure_problems(cl) if cl is not None else {}
+            done = cl is not None and not problems
             out["needed_check"], out["done"] = need_check, done
             if done:
-                out["closure"] = {f: str(cl[f]) for f in CLOSURE_FIELDS}
-            elif cl:
-                out["closure_incomplete"] = sorted(f for f in CLOSURE_FIELDS if not str(cl.get(f, "")).strip()) \
-                    if isinstance(cl, dict) else list(CLOSURE_FIELDS)
+                out["closure"] = {f: cl[f] for f in CLOSURE_FIELDS}
+            elif cl is not None:
+                out["closure_problems"] = problems
     if st == NOTVER:
         out["reason"] = "; ".join(notes) or str(item.get("reason") or "no evidence yet")
     out["status"] = st

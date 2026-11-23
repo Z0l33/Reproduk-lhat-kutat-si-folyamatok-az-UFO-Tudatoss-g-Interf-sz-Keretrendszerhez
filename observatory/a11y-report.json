@@ -171,7 +171,7 @@
         "title": "Claim-level categories as validated scientific categories"
       }
     ],
-    "manual_closure_rule": "A MANUAL REQUIRED item is closed only by a human record in observatory/a11y-manual-results.json ({item id: {result, performed_by, performed_on (YYYY-MM-DD), environment (tool, version, device)}}). All four fields must be non-empty; with any missing the item stays open. This script never closes an item itself, and a closed item keeps the status MANUAL REQUIRED with done=true and its closure record shown. A closed manual item does not turn NOT VERIFIED items into PASS; the overall status is PASS only when no item is NOT VERIFIED and no manual item is open.",
+    "manual_closure_rule": "A MANUAL REQUIRED item is closed only by a human record in observatory/a11y-manual-results.json ({item id: {result, performed_by, performed_on (YYYY-MM-DD), environment (tool, version, device)}}). All four fields must be valid: non-placeholder strings, performed_on a real YYYY-MM-DD date, environment naming tool and version; with any invalid the item stays open and the problem is listed. A date in the future is not rejected, so the report stays reproducible. This script never closes an item itself, and a closed item keeps the status MANUAL REQUIRED with done=true and its closure record shown. A closed manual item does not turn NOT VERIFIED items into PASS; the overall status is PASS only when no item is NOT VERIFIED and no manual item is open.",
     "overall": {
       "closed_manual": [],
       "open": {
@@ -197,12 +197,12 @@
     "scope": "Static analysis of the generated observatory/index.html source (markup, CSS tokens, the script's string tables and render templates). Not an accessibility-tree measurement, not a screen-reader run, not a WCAG conformance audit."
   },
   "metadata": {
-    "content_sha256": "16b476af1d2c4ca348c463f4318efc2eadaac846202412133b7af32581e7cfc1",
+    "content_sha256": "ae862486f67701c41914b3647ee5618c06142e58d42c747f80ba960feaef40c0",
     "environment": {
       "platform": "Linux-6.18.44-fc-v726-x86_64-with-glibc2.39",
       "python": "3.13.18"
     },
-    "generated_at": "2026-11-23T17:37:52Z",
+    "generated_at": "2026-11-23T17:41:46Z",
     "note": "metadata describes this run; it is not part of the reproducible content",
     "tool": "observatory/a11y_report.py",
     "tool_version": "1"
