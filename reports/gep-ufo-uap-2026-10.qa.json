@@ -1,0 +1,327 @@
+{
+ "classification": {
+  "Klassifikation_Hendry": {
+   "distinct_normalised": 7,
+   "distinct_raw": 8,
+   "filled": 5729,
+   "groups_with_spelling_variants": 1,
+   "missing": 1042,
+   "rows_in_variant_groups": 4669,
+   "value_counts": {
+    "GOOD UFO": 21,
+    "Hoax": 9,
+    "IFO": 4668,
+    "IFo": 1,
+    "NEAR IFO": 237,
+    "PROBLEMATIC UFO": 110,
+    "S": 24,
+    "Ungenügende Daten": 659
+   }
+  },
+  "Klassifikation_Hynek": {
+   "distinct_normalised": 14,
+   "distinct_raw": 14,
+   "filled": 6015,
+   "groups_with_spelling_variants": 0,
+   "missing": 756,
+   "rows_in_variant_groups": 0,
+   "value_counts": {
+    "?": 19,
+    "CE I": 183,
+    "CE II": 53,
+    "CE III": 39,
+    "CE IV": 8,
+    "CE IV.1": 7,
+    "CE IV.2": 10,
+    "CE IV.3": 2,
+    "CE IV.4": 14,
+    "CE V": 5,
+    "DD": 1400,
+    "NL": 4253,
+    "RV": 2,
+    "S": 20
+   }
+  },
+  "Klassifikation_IFO-Verifikationsschluessel": {
+   "distinct_normalised": 3,
+   "distinct_raw": 3,
+   "filled": 4153,
+   "groups_with_spelling_variants": 0,
+   "missing": 2618,
+   "rows_in_variant_groups": 0,
+   "value_counts": {
+    "V1": 1264,
+    "V2": 2266,
+    "V3": 623
+   }
+  },
+  "hendry_S_rows": 24,
+  "hendry_good_ufo_rows": 21,
+  "hendry_hoax_rows": 9,
+  "hendry_ifo_case_variants_rows": 1,
+  "hendry_x_verification_key": {
+   "(empty) | (empty)": 1042,
+   "GOOD UFO | (empty)": 21,
+   "Hoax | (empty)": 9,
+   "IFO | (empty)": 516,
+   "IFO | V1": 1264,
+   "IFO | V2": 2266,
+   "IFO | V3": 622,
+   "IFo | V3": 1,
+   "NEAR IFO | (empty)": 237,
+   "PROBLEMATIC UFO | (empty)": 110,
+   "S | (empty)": 24,
+   "Ungenügende Daten | (empty)": 659
+  }
+ },
+ "dates": {
+  "Datum": {
+   "after_2026_10_31": 0,
+   "before_1972": 14,
+   "by_decade": {
+    "1920s": 2,
+    "1950s": 4,
+    "1960s": 6,
+    "1970s": 57,
+    "1980s": 159,
+    "1990s": 605,
+    "2000s": 1388,
+    "2010s": 1983,
+    "2020s": 1677
+   },
+   "missing": 263,
+   "unparsable": 627
+  },
+  "Gemeldet": {
+   "after_2026_10_31": 0,
+   "equal_1970_01_01": 1,
+   "missing": 1043,
+   "unparsable": 0
+  },
+  "UTC": {
+   "filled": 5780,
+   "invalid_hh_mm": 0
+  },
+  "both_dates_present": 5020,
+  "datum_missing_but_gemeldet_present": 708,
+  "lokale Uhrzeit": {
+   "filled": 6037,
+   "invalid_hh_mm": 0
+  },
+  "reported_before_event": 0,
+  "reported_more_than_1_year_after_event": 386
+ },
+ "geography": {
+  "Bundesland": {
+   "distinct_normalised": 224,
+   "distinct_raw": 225,
+   "groups_with_spelling_variants": 1,
+   "length_max": 30,
+   "missing": 168,
+   "rows_in_variant_groups": 10,
+   "with_digits": 0
+  },
+  "Land": {
+   "distinct_normalised": 73,
+   "distinct_raw": 73,
+   "groups_with_spelling_variants": 0,
+   "missing": 6,
+   "rows_in_variant_groups": 0,
+   "value_counts": {
+    "?": 7,
+    "Afghanistan": 2,
+    "Albanien": 1,
+    "Argentinien": 1,
+    "Belgien": 3,
+    "Bolivien": 1,
+    "Bosnien und Herzegowina": 2,
+    "Brasilien": 3,
+    "Bulgarien": 3,
+    "Chile": 2,
+    "Deutschland": 6036,
+    "Dominikanische Republik": 1,
+    "Dschibuti": 1,
+    "Dänemark": 8,
+    "Finnland": 1,
+    "Frankreich": 17,
+    "Griechenland": 14,
+    "Grönland": 1,
+    "Indischer Ozean": 1,
+    "Indonesien": 3,
+    "Iran": 1,
+    "Irland": 1,
+    "Island": 3,
+    "Israel": 1,
+    "Italien": 47,
+    "Japan": 1,
+    "Kanada": 4,
+    "Kasachstan": 1,
+    "Kosovo": 1,
+    "Kroatien": 18,
+    "Libanon": 1,
+    "Liechtenstein": 1,
+    "Luxemburg": 14,
+    "Malediven": 1,
+    "Marokko": 3,
+    "Mexiko": 1,
+    "Namibia": 3,
+    "Neuseeland": 1,
+    "Niederlande": 18,
+    "Nordmazedonien": 1,
+    "Norwegen": 4,
+    "Nördlicher Stiller Ozean": 1,
+    "Oman": 1,
+    "Peru": 1,
+    "Polen": 12,
+    "Portugal": 7,
+    "Rumänien": 2,
+    "Russland": 5,
+    "Saudi-Arabien": 1,
+    "Schweden": 5,
+    "Schweiz": 137,
+    "Serbien": 1,
+    "Slowakei": 3,
+    "Slowenien": 1,
+    "Spanien": 66,
+    "Sri Lanka": 1,
+    "Syrien": 1,
+    "Südafrika": 1,
+    "Südkorea": 1,
+    "Thailand": 12,
+    "Tschechien": 7,
+    "Tunesien": 3,
+    "Türkei": 10,
+    "USA": 20,
+    "Ukraine": 1,
+    "Ungarn": 1,
+    "Vatikanstadt": 1,
+    "Vereinigte Arabische Emirate": 1,
+    "Vereinigtes Königreich": 6,
+    "x": 3,
+    "xxxxx": 1,
+    "Ägypten": 8,
+    "Österreich": 210
+   }
+  },
+  "PLZ": {
+   "digits_only": 6089,
+   "equal_to_zero": 1,
+   "filled": 6179,
+   "format_patterns": {
+    "99 999": 4,
+    "999": 3,
+    "999 99": 15,
+    "999AA": 16,
+    "99AAA": 11,
+    "9A{n}": 10,
+    "9{n}": 6086,
+    "9{n}A": 6,
+    "AA 9{n}": 3,
+    "A{n}": 15
+   },
+   "leading_zero": 408,
+   "length_distribution": {
+    "10": 1,
+    "3": 3,
+    "4": 364,
+    "5": 5780,
+    "6": 23,
+    "7": 3,
+    "8": 4,
+    "9": 1
+   },
+   "not_digits_only": 90
+  },
+  "PLZ_unvollstaendig": {
+   "filled": 390,
+   "format_patterns": {
+    "9": 57,
+    "99": 78,
+    "999": 144,
+    "9{n}": 110,
+    "9{n} ()": 1
+   }
+  },
+  "plz_and_plz_unvollstaendig_both_filled": 0
+ },
+ "identifier": {
+  "duplicated_values": 0,
+  "format_patterns": {
+   "9{n} A": 6527,
+   "9{n} AA": 140,
+   "9{n}/99 A": 1,
+   "A9{n}": 102
+  },
+  "missing": 1
+ },
+ "input": {
+  "bytes": 2512448,
+  "columns": 19,
+  "data_rows": 6771,
+  "delimiter": ";",
+  "encoding": "utf-8-sig",
+  "missing_expected_columns": [],
+  "sha256": "4dc9787e8a4b77d6ab52e952e93439418662041e3e0830c998d3f1aadbe125d3",
+  "sha256_after": "4dc9787e8a4b77d6ab52e952e93439418662041e3e0830c998d3f1aadbe125d3",
+  "unchanged_during_analysis": true
+ },
+ "notice": "Counts and patterns only. Privacy patterns are heuristics (zero != absent).",
+ "privacy_screen": {
+  "Sachverhalt": {
+   "filled": 4854,
+   "length_max": 2377,
+   "length_over_1000": 33,
+   "rows_matching": {
+    "age_mention": 1612,
+    "coordinates": 0,
+    "email": 0,
+    "first_person": 15,
+    "phone_like": 0,
+    "salutation_name": 2,
+    "street_with_number": 0,
+    "url": 2
+   },
+   "rows_with_identical_text_elsewhere": 30
+  },
+  "Sichtungsort": {
+   "filled": 6693,
+   "rows_matching": {
+    "coordinates": 0,
+    "has_digit": 28,
+    "street_suffix": 21
+   }
+  },
+  "note": "The dataset description says submitter personal data were excluded; this screen only counts surface patterns. Manual review of flagged rows is required before any redistribution or publication.",
+  "quasi_identifier_uniqueness": {
+   "definition": "rows with Datum, lokale Uhrzeit and Sichtungsort all filled, grouped by (Datum, lokale Uhrzeit, Sichtungsort, PLZ)",
+   "rows_considered": 5935,
+   "rows_unique_combination": 5911,
+   "rows_with_exact_time_place_date_and_plz": 5531
+  }
+ },
+ "qa_version": 1,
+ "summary": {
+  "free_text_columns_never_echoed": [
+   "Sachverhalt",
+   "Sichtungsort",
+   "Identifikation",
+   "Identifikations_Gruppe"
+  ],
+  "rows": 6771,
+  "rows_with_at_least_one_flag": 1905,
+  "rule_counts": {
+   "datum_before_1972": 14,
+   "duplicate_sachverhalt_text": 30,
+   "gemeldet_epoch_1970_01_01": 1,
+   "hendry_S_unclear_meaning": 24,
+   "hendry_case_variant": 1,
+   "missing_datum": 263,
+   "missing_fallnummer": 1,
+   "missing_land": 6,
+   "plz_nonnumeric_or_over_5_digits": 93,
+   "plz_zero": 1,
+   "sachverhalt_direct_identifier_pattern": 1614,
+   "sichtungsort_street_with_number": 3
+  }
+ }
+}
