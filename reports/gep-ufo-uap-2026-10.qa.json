@@ -1,0 +1,874 @@
+{
+ "classification": {
+  "Klassifikation_Hendry": {
+   "distinct_normalised": 7,
+   "distinct_raw": 8,
+   "filled": 5729,
+   "groups_with_spelling_variants": 1,
+   "missing": 1042,
+   "rows_in_variant_groups": 4669,
+   "value_counts": {
+    "GOOD UFO": 21,
+    "Hoax": 9,
+    "IFO": 4668,
+    "IFo": 1,
+    "NEAR IFO": 237,
+    "PROBLEMATIC UFO": 110,
+    "S": 24,
+    "Ungenügende Daten": 659
+   }
+  },
+  "Klassifikation_Hynek": {
+   "distinct_normalised": 14,
+   "distinct_raw": 14,
+   "filled": 6015,
+   "groups_with_spelling_variants": 0,
+   "missing": 756,
+   "rows_in_variant_groups": 0,
+   "value_counts": {
+    "?": 19,
+    "CE I": 183,
+    "CE II": 53,
+    "CE III": 39,
+    "CE IV": 8,
+    "CE IV.1": 7,
+    "CE IV.2": 10,
+    "CE IV.3": 2,
+    "CE IV.4": 14,
+    "CE V": 5,
+    "DD": 1400,
+    "NL": 4253,
+    "RV": 2,
+    "S": 20
+   }
+  },
+  "Klassifikation_IFO-Verifikationsschluessel": {
+   "distinct_normalised": 3,
+   "distinct_raw": 3,
+   "filled": 4153,
+   "groups_with_spelling_variants": 0,
+   "missing": 2618,
+   "rows_in_variant_groups": 0,
+   "value_counts": {
+    "V1": 1264,
+    "V2": 2266,
+    "V3": 623
+   }
+  },
+  "hendry_S_rows": 24,
+  "hendry_good_ufo_rows": 21,
+  "hendry_hoax_rows": 9,
+  "hendry_ifo_case_variants_rows": 1,
+  "hendry_x_verification_key": {
+   "(empty) | (empty)": 1042,
+   "GOOD UFO | (empty)": 21,
+   "Hoax | (empty)": 9,
+   "IFO | (empty)": 516,
+   "IFO | V1": 1264,
+   "IFO | V2": 2266,
+   "IFO | V3": 622,
+   "IFo | V3": 1,
+   "NEAR IFO | (empty)": 237,
+   "PROBLEMATIC UFO | (empty)": 110,
+   "S | (empty)": 24,
+   "Ungenügende Daten | (empty)": 659
+  }
+ },
+ "dates": {
+  "Datum": {
+   "after_2026_10_31": 0,
+   "before_1972": 14,
+   "by_decade": {
+    "1920s": 2,
+    "1950s": 4,
+    "1960s": 6,
+    "1970s": 57,
+    "1980s": 159,
+    "1990s": 605,
+    "2000s": 1388,
+    "2010s": 1983,
+    "2020s": 1677
+   },
+   "missing": 263,
+   "unparsable": 627
+  },
+  "Datum_precision": {
+   "full": 5881,
+   "missing": 263,
+   "other_unparsable": 0,
+   "year_month": 343,
+   "year_only": 284
+  },
+  "Datum_precision_sums_to_rows": true,
+  "Datum_unparsable_breakdown": {
+   "by_error_type": {
+    "year_month_only": 343,
+    "year_only": 284
+   },
+   "count": 627,
+   "format_shapes": {
+    "99.9{n}": 343,
+    "9{n}": 284
+   },
+   "length_distribution": {
+    "4": 284,
+    "7": 343
+   },
+   "note": "shapes: digits shown as 9, letters as A; no concrete values are printed",
+   "with_gemeldet_present": 477
+  },
+  "Gemeldet": {
+   "after_2026_10_31": 0,
+   "equal_1970_01_01": 1,
+   "missing": 1043,
+   "unparsable": 0
+  },
+  "UTC": {
+   "filled": 5780,
+   "invalid_hh_mm": 0
+  },
+  "both_dates_present": 5020,
+  "delay_basis": "reporting-delay and order checks use only rows with full-precision Datum and a parsed Gemeldet; year- or month-precision events never get a daily delay",
+  "gemeldet_present_by_datum_precision": {
+   "full": 5020,
+   "missing": 231,
+   "other_unparsable": 0,
+   "year_month": 258,
+   "year_only": 219
+  },
+  "lokale Uhrzeit": {
+   "filled": 6037,
+   "invalid_hh_mm": 0
+  },
+  "reported_before_event": 0,
+  "reported_more_than_1_year_after_event": 386
+ },
+ "evidence_levels": {
+  "facts": [
+   "input",
+   "identifier",
+   "geography (counts and formats)",
+   "dates.Datum_precision",
+   "dates.Datum_unparsable_breakdown",
+   "classification.value_counts",
+   "geography_deep (counts, lengths, character kinds, group sizes)",
+   "summary.rule_counts for structural rules (missing_*, datum_*, plz_*, hendry_*, land_*)"
+  ],
+  "heuristic_hits": [
+   "reidentification_risk (risk estimate only, file-internal)",
+   "privacy_screen.*.rows_matching",
+   "privacy_screen.age_analysis",
+   "summary.rule_counts: sachverhalt_*, sichtungsort_*, duplicate_sachverhalt_text"
+  ],
+  "unverified_assumptions": [
+   "that uniqueness inside this file reflects uniqueness in the real population (reidentification_risk.assumptions)",
+   "that the country-specific PLZ formats used for the consistency check (PLZ_DIGITS_BY_LAND) are the right expectation for every row of that country",
+   "that PLZ_unvollstaendig holds truncated postal codes (see geography_deep.PLZ_unvollstaendig)",
+   "that a heuristic hit corresponds to a real personal identifier (not checked: no text is read)",
+   "that PLZ_unvollstaendig and the Hynek/Hendry codes mean what their names suggest (GEP documentation not consulted)",
+   "that the dataset is free of submitter personal data, as its description states",
+   "that Datum/Gemeldet formats are consistently day-month-year (only parseability was tested)"
+  ]
+ },
+ "geography": {
+  "Bundesland": {
+   "distinct_normalised": 224,
+   "distinct_raw": 225,
+   "groups_with_spelling_variants": 1,
+   "length_max": 30,
+   "missing": 168,
+   "rows_in_variant_groups": 10,
+   "with_digits": 0
+  },
+  "Land": {
+   "distinct_normalised": 73,
+   "distinct_raw": 73,
+   "groups_with_spelling_variants": 0,
+   "missing": 6,
+   "rows_in_variant_groups": 0,
+   "value_counts": {
+    "?": 7,
+    "Afghanistan": 2,
+    "Albanien": 1,
+    "Argentinien": 1,
+    "Belgien": 3,
+    "Bolivien": 1,
+    "Bosnien und Herzegowina": 2,
+    "Brasilien": 3,
+    "Bulgarien": 3,
+    "Chile": 2,
+    "Deutschland": 6036,
+    "Dominikanische Republik": 1,
+    "Dschibuti": 1,
+    "Dänemark": 8,
+    "Finnland": 1,
+    "Frankreich": 17,
+    "Griechenland": 14,
+    "Grönland": 1,
+    "Indischer Ozean": 1,
+    "Indonesien": 3,
+    "Iran": 1,
+    "Irland": 1,
+    "Island": 3,
+    "Israel": 1,
+    "Italien": 47,
+    "Japan": 1,
+    "Kanada": 4,
+    "Kasachstan": 1,
+    "Kosovo": 1,
+    "Kroatien": 18,
+    "Libanon": 1,
+    "Liechtenstein": 1,
+    "Luxemburg": 14,
+    "Malediven": 1,
+    "Marokko": 3,
+    "Mexiko": 1,
+    "Namibia": 3,
+    "Neuseeland": 1,
+    "Niederlande": 18,
+    "Nordmazedonien": 1,
+    "Norwegen": 4,
+    "Nördlicher Stiller Ozean": 1,
+    "Oman": 1,
+    "Peru": 1,
+    "Polen": 12,
+    "Portugal": 7,
+    "Rumänien": 2,
+    "Russland": 5,
+    "Saudi-Arabien": 1,
+    "Schweden": 5,
+    "Schweiz": 137,
+    "Serbien": 1,
+    "Slowakei": 3,
+    "Slowenien": 1,
+    "Spanien": 66,
+    "Sri Lanka": 1,
+    "Syrien": 1,
+    "Südafrika": 1,
+    "Südkorea": 1,
+    "Thailand": 12,
+    "Tschechien": 7,
+    "Tunesien": 3,
+    "Türkei": 10,
+    "USA": 20,
+    "Ukraine": 1,
+    "Ungarn": 1,
+    "Vatikanstadt": 1,
+    "Vereinigte Arabische Emirate": 1,
+    "Vereinigtes Königreich": 6,
+    "x": 3,
+    "xxxxx": 1,
+    "Ägypten": 8,
+    "Österreich": 210
+   }
+  },
+  "PLZ": {
+   "digits_only": 6089,
+   "equal_to_zero": 1,
+   "filled": 6179,
+   "format_patterns": {
+    "99 999": 4,
+    "999": 3,
+    "999 99": 15,
+    "999AA": 16,
+    "99AAA": 11,
+    "9A{n}": 10,
+    "9{n}": 6086,
+    "9{n}A": 6,
+    "AA 9{n}": 3,
+    "A{n}": 15
+   },
+   "leading_zero": 408,
+   "length_distribution": {
+    "10": 1,
+    "3": 3,
+    "4": 364,
+    "5": 5780,
+    "6": 23,
+    "7": 3,
+    "8": 4,
+    "9": 1
+   },
+   "not_digits_only": 90
+  },
+  "PLZ_unvollstaendig": {
+   "filled": 390,
+   "format_patterns": {
+    "9": 57,
+    "99": 78,
+    "999": 144,
+    "9{n}": 110,
+    "9{n} ()": 1
+   }
+  },
+  "plz_and_plz_unvollstaendig_both_filled": 0
+ },
+ "geography_deep": {
+  "Bundesland": {
+   "filled_but_land_missing_or_placeholder": 0,
+   "filled_by_land_group": {
+    "Deutschland": 5957,
+    "Schweiz": 133,
+    "other_country": 311,
+    "Österreich": 202
+   },
+   "missing_for_germany": 79,
+   "placeholder_values": 0
+  },
+  "Land": {
+   "groups": {
+    "Deutschland": 6036,
+    "Schweiz": 137,
+    "missing_or_placeholder": 17,
+    "other_country": 371,
+    "Österreich": 210
+   },
+   "non_country_marker": 2,
+   "placeholder_values": 11
+  },
+  "PLZ": {
+   "all_zero_values": 1,
+   "by_land_group": {
+    "Deutschland": {
+     "digits_only": 5568,
+     "filled": 5617,
+     "length_distribution": {
+      "4": 2,
+      "5": 5614,
+      "6": 1
+     }
+    },
+    "Schweiz": {
+     "digits_only": 126,
+     "filled": 127,
+     "length_distribution": {
+      "4": 122,
+      "5": 5
+     }
+    },
+    "missing_or_placeholder": {
+     "digits_only": 0,
+     "filled": 3,
+     "length_distribution": {
+      "5": 3
+     }
+    },
+    "other_country": {
+     "digits_only": 205,
+     "filled": 239,
+     "length_distribution": {
+      "10": 1,
+      "3": 3,
+      "4": 50,
+      "5": 155,
+      "6": 22,
+      "7": 3,
+      "8": 4,
+      "9": 1
+     }
+    },
+    "Österreich": {
+     "digits_only": 190,
+     "filled": 193,
+     "length_distribution": {
+      "4": 190,
+      "5": 3
+     }
+    }
+   },
+   "digits_only": 6089,
+   "expected_format_by_country": {
+    "Belgien": {
+     "expected_digits": 4,
+     "filled": 3,
+     "longer_or_non_digit": 0,
+     "not_expected_format": 0,
+     "shorter_all_digits": 0
+    },
+    "Deutschland": {
+     "expected_digits": 5,
+     "filled": 5617,
+     "longer_or_non_digit": 50,
+     "not_expected_format": 52,
+     "shorter_all_digits": 2
+    },
+    "Dänemark": {
+     "expected_digits": 4,
+     "filled": 8,
+     "longer_or_non_digit": 0,
+     "not_expected_format": 0,
+     "shorter_all_digits": 0
+    },
+    "Frankreich": {
+     "expected_digits": 5,
+     "filled": 16,
+     "longer_or_non_digit": 0,
+     "not_expected_format": 0,
+     "shorter_all_digits": 0
+    },
+    "Italien": {
+     "expected_digits": 5,
+     "filled": 43,
+     "longer_or_non_digit": 0,
+     "not_expected_format": 0,
+     "shorter_all_digits": 0
+    },
+    "Kroatien": {
+     "expected_digits": 5,
+     "filled": 16,
+     "longer_or_non_digit": 3,
+     "not_expected_format": 3,
+     "shorter_all_digits": 0
+    },
+    "Liechtenstein": {
+     "expected_digits": 4,
+     "filled": 1,
+     "longer_or_non_digit": 0,
+     "not_expected_format": 0,
+     "shorter_all_digits": 0
+    },
+    "Luxemburg": {
+     "expected_digits": 4,
+     "filled": 11,
+     "longer_or_non_digit": 0,
+     "not_expected_format": 0,
+     "shorter_all_digits": 0
+    },
+    "Schweiz": {
+     "expected_digits": 4,
+     "filled": 127,
+     "longer_or_non_digit": 5,
+     "not_expected_format": 5,
+     "shorter_all_digits": 0
+    },
+    "Spanien": {
+     "expected_digits": 5,
+     "filled": 48,
+     "longer_or_non_digit": 0,
+     "not_expected_format": 2,
+     "shorter_all_digits": 2
+    },
+    "Ungarn": {
+     "expected_digits": 4,
+     "filled": 1,
+     "longer_or_non_digit": 0,
+     "not_expected_format": 0,
+     "shorter_all_digits": 0
+    },
+    "Österreich": {
+     "expected_digits": 4,
+     "filled": 193,
+     "longer_or_non_digit": 5,
+     "not_expected_format": 5,
+     "shorter_all_digits": 0
+    }
+   },
+   "filled": 6179,
+   "filled_but_land_missing_or_placeholder": 3,
+   "germany_five_digit_starting_00": 0,
+   "leading_zero_preserved_count": 403,
+   "length_distribution": {
+    "10": 1,
+    "3": 3,
+    "4": 364,
+    "5": 5780,
+    "6": 23,
+    "7": 3,
+    "8": 4,
+    "9": 1
+   },
+   "non_digit_character_kinds_in_values": {
+    "letter": 10,
+    "letter_x": 61,
+    "other_symbol": 1,
+    "space": 28
+   },
+   "non_digit_value_shapes": {
+    "99 999": 4,
+    "999 99": 15,
+    "999AA": 16,
+    "999AAA": 1,
+    "99AAA": 11,
+    "9AAA": 2,
+    "9A{n}": 10,
+    "9{n} AA": 1,
+    "9{n}A": 6,
+    "A99 – A99": 1,
+    "A9A 9A9": 1,
+    "A9{n}": 1,
+    "AA 9{n}": 3,
+    "AA A9A 9A9": 1,
+    "A{n}": 15
+   },
+   "not_digits_only": 90,
+   "placeholder_values": 15,
+   "repeated_single_digit_values": 0,
+   "small_cells": {
+    "distinct_plz": 3614,
+    "rows_in_plz_with_exactly_1_row": 2192,
+    "rows_in_plz_with_fewer_than_3_rows": 3792,
+    "rows_in_plz_with_fewer_than_5_rows": 5413
+   }
+  },
+  "PLZ_unvollstaendig": {
+   "digits_only": 389,
+   "filled": 390,
+   "groups": {
+    "1_to_3_digits": 279,
+    "4_or_more_digits": 110,
+    "4_or_more_digits_by_length": {
+     "4": 95,
+     "5": 9,
+     "7": 5,
+     "8": 1
+    },
+    "6_or_more_digits": 6
+   },
+   "land_groups_of_filled_rows": {
+    "Deutschland": 335,
+    "Schweiz": 5,
+    "other_country": 42,
+    "Österreich": 8
+   },
+   "leading_zero_preserved_count": 13,
+   "length_distribution": {
+    "1": 57,
+    "2": 78,
+    "3": 144,
+    "4": 95,
+    "5": 9,
+    "7": 5,
+    "8": 2
+   },
+   "meaning_status": "UNVERIFIED. Heuristic reading: 1-3 digit values are compatible with a truncated postal code; 4 digit values are compatible with a truncated 5-digit German code but also with a complete 4-digit code of AT/CH and similar; 5 digit values look complete; values with 6 or more digits fit no postal format. The GEP documentation was not consulted. Do not use this field for analysis before that.",
+   "non_digit_character_kinds_in_values": {
+    "close_parenthesis": 1,
+    "open_parenthesis": 1,
+    "space": 1
+   },
+   "not_digits_only": 1,
+   "overlap_with_plz": 0,
+   "reading_bands": {
+    "1_to_3_digits": 279,
+    "4_digits": 95,
+    "4_digits_in_land_with_4_digit_postcodes": 0,
+    "5_digits": 9,
+    "6_or_more_digits": 6,
+    "facts": "length bands of digits-only values"
+   },
+   "sichtungsort_filled_for_filled_rows": 390,
+   "values_ending_with_zero_padding": {
+    "ends_with_000": 1,
+    "ends_with_0000": 1
+   }
+  }
+ },
+ "identifier": {
+  "duplicated_values": 0,
+  "format_patterns": {
+   "9{n} A": 6527,
+   "9{n} AA": 140,
+   "9{n}/99 A": 1,
+   "A9{n}": 102
+  },
+  "missing": 1
+ },
+ "input": {
+  "bytes": 2512448,
+  "columns": 19,
+  "data_rows": 6771,
+  "delimiter": ";",
+  "encoding": "utf-8-sig",
+  "missing_expected_columns": [],
+  "sha256": "4dc9787e8a4b77d6ab52e952e93439418662041e3e0830c998d3f1aadbe125d3",
+  "sha256_after": "4dc9787e8a4b77d6ab52e952e93439418662041e3e0830c998d3f1aadbe125d3",
+  "unchanged_during_analysis": true
+ },
+ "notice": "Counts and patterns only. Privacy patterns are heuristics (zero != absent).",
+ "privacy_screen": {
+  "Sachverhalt": {
+   "filled": 4854,
+   "length_max": 2377,
+   "length_over_1000": 33,
+   "rows_matching": {
+    "age_phrase_broad": 1612,
+    "coordinates": 0,
+    "email": 0,
+    "first_person": 15,
+    "phone_like": 0,
+    "salutation_name": 2,
+    "street_with_number": 0,
+    "url": 2
+   },
+   "rows_with_identical_text_elsewhere": 30
+  },
+  "Sichtungsort": {
+   "filled": 6693,
+   "rows_matching": {
+    "coordinates": 0,
+    "has_digit": 28,
+    "street_suffix": 21
+   }
+  },
+  "age_analysis": {
+   "definition": "strict = an age phrase bound to a person noun from a closed German vocabulary; broad = any 'NN-jährig' or 'NN Jahre alt'. Heuristic: neither proves a real person.",
+   "rows_broad": 1612,
+   "rows_broad_not_strict": 57,
+   "rows_by_form": {
+    "number_jaehrig_then_person": 1555,
+    "number_jahre_alt": 6,
+    "person_then_bracket_number": 0,
+    "person_then_number_years": 1
+   },
+   "rows_strict": 1555,
+   "rows_with_more_than_one_strict_age": 9,
+   "strict_age_values": {
+    "by_band": {
+     "0-17": 170,
+     "18-39": 675,
+     "40-64": 625,
+     "65+": 94
+    },
+    "count": 1564,
+    "over_100": 0,
+    "under_18": 170
+   },
+   "unverified": "rows_broad_not_strict could not be assigned to a person or to something else without reading the text; they are neither confirmed nor dismissed."
+  },
+  "note": "The dataset description says submitter personal data were excluded; this screen only counts surface patterns. Manual review of flagged rows is required before any redistribution or publication.",
+  "quasi_identifier_uniqueness": {
+   "definition": "rows with Datum, lokale Uhrzeit and Sichtungsort all filled, grouped by (Datum, lokale Uhrzeit, Sichtungsort, PLZ)",
+   "rows_considered": 5935,
+   "rows_unique_combination": 5911,
+   "rows_with_exact_time_place_date_and_plz": 5531
+  }
+ },
+ "qa_version": 1,
+ "reidentification_risk": {
+  "assumptions": [
+   "uniqueness is measured inside this file only; the real population is larger, so a unique row here may or may not be unique in reality",
+   "an attacker is assumed to know some of: place, date, time, a person's age",
+   "age comes from a heuristic text screen; it may belong to a person other than the reporter",
+   "reduced-precision and missing dates are excluded from every level that needs a full date"
+  ],
+  "cohorts": {
+   "minors_any_strict_age_under_18": 170,
+   "strict_person_bound_age": 1555,
+   "unclassified_age_phrase_not_verified": 57
+  },
+  "handling_note": "Rows with minor ages must not be redistributed or published at place level; treat the minors cohort as restricted data.",
+  "kind": "risk estimate, not proof of identifiability",
+  "minors_strict_cohort_banded_and_suppressed": {
+   "L1_plz": {
+    "eligible_rows": 162,
+    "rows_excluded_missing_component_or_reduced_date": "<10",
+    "rows_in_groups_smaller_than_5": 162,
+    "share_in_groups_smaller_than_5_band": "75%+"
+   },
+   "L2_plz_age": {
+    "eligible_rows": 162,
+    "rows_excluded_missing_component_or_reduced_date": "<10",
+    "rows_in_groups_smaller_than_5": 162,
+    "share_in_groups_smaller_than_5_band": "75%+"
+   },
+   "L3_plz_age_date": {
+    "eligible_rows": 108,
+    "rows_excluded_missing_component_or_reduced_date": 62,
+    "rows_in_groups_smaller_than_5": 108,
+    "share_in_groups_smaller_than_5_band": "75%+"
+   },
+   "L4_plz_age_date_time": {
+    "eligible_rows": 104,
+    "rows_excluded_missing_component_or_reduced_date": 66,
+    "rows_in_groups_smaller_than_5": 104,
+    "share_in_groups_smaller_than_5_band": "75%+"
+   },
+   "L5_place_age_date": {
+    "eligible_rows": 110,
+    "rows_excluded_missing_component_or_reduced_date": 60,
+    "rows_in_groups_smaller_than_5": 110,
+    "share_in_groups_smaller_than_5_band": "75%+"
+   },
+   "L6_generalised_plz2_ageband_month": {
+    "eligible_rows": 108,
+    "rows_excluded_missing_component_or_reduced_date": 62,
+    "rows_in_groups_smaller_than_5": 108,
+    "share_in_groups_smaller_than_5_band": "75%+"
+   },
+   "L7_coarse_plz1_ageband_decade": {
+    "eligible_rows": 108,
+    "rows_excluded_missing_component_or_reduced_date": 62,
+    "rows_in_groups_smaller_than_5": 56,
+    "share_in_groups_smaller_than_5_band": "25-74%"
+   }
+  },
+  "risk_indicator_bands": "share of eligible rows in groups smaller than 5: below 5% low, below 25% moderate, below 75% high, otherwise very_high. Thresholds are heuristic conventions, not legal or statistical standards.",
+  "strict_age_cohort": {
+   "L1_plz": {
+    "eligible_rows": 1514,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 41,
+    "rows_in_groups_smaller_than_5": 1504,
+    "share_in_groups_smaller_than_5": 0.993
+   },
+   "L2_plz_age": {
+    "eligible_rows": 1514,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 41,
+    "rows_in_groups_smaller_than_5": 1514,
+    "share_in_groups_smaller_than_5": 1.0
+   },
+   "L3_plz_age_date": {
+    "eligible_rows": 1318,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 237,
+    "rows_in_groups_smaller_than_5": 1318,
+    "share_in_groups_smaller_than_5": 1.0
+   },
+   "L4_plz_age_date_time": {
+    "eligible_rows": 1296,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 259,
+    "rows_in_groups_smaller_than_5": 1296,
+    "share_in_groups_smaller_than_5": 1.0
+   },
+   "L5_place_age_date": {
+    "eligible_rows": 1345,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 210,
+    "rows_in_groups_smaller_than_5": 1345,
+    "share_in_groups_smaller_than_5": 1.0
+   },
+   "L6_generalised_plz2_ageband_month": {
+    "eligible_rows": 1318,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 237,
+    "rows_in_groups_smaller_than_5": 1318,
+    "share_in_groups_smaller_than_5": 1.0
+   },
+   "L7_coarse_plz1_ageband_decade": {
+    "eligible_rows": 1318,
+    "risk_indicator": "moderate",
+    "rows_excluded_missing_component_or_reduced_date": 237,
+    "rows_in_groups_smaller_than_5": 218,
+    "share_in_groups_smaller_than_5": 0.165
+   }
+  },
+  "suppression": {
+   "general_threshold": 5,
+   "groups_smaller_than_5": "merged into one band, never listed",
+   "minors_threshold": 10
+  },
+  "unclassified_cohort_not_verified": {
+   "L1_plz": {
+    "eligible_rows": 47,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 10,
+    "rows_in_groups_smaller_than_5": 47,
+    "share_in_groups_smaller_than_5": 1.0
+   },
+   "L2_plz_age": {
+    "eligible_rows": 47,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 10,
+    "rows_in_groups_smaller_than_5": 47,
+    "share_in_groups_smaller_than_5": 1.0
+   },
+   "L3_plz_age_date": {
+    "eligible_rows": 26,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 31,
+    "rows_in_groups_smaller_than_5": 26,
+    "share_in_groups_smaller_than_5": 1.0
+   },
+   "L4_plz_age_date_time": {
+    "eligible_rows": 26,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 31,
+    "rows_in_groups_smaller_than_5": 26,
+    "share_in_groups_smaller_than_5": 1.0
+   },
+   "L5_place_age_date": {
+    "eligible_rows": 27,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 30,
+    "rows_in_groups_smaller_than_5": 27,
+    "share_in_groups_smaller_than_5": 1.0
+   },
+   "L6_generalised_plz2_ageband_month": {
+    "eligible_rows": 26,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 31,
+    "rows_in_groups_smaller_than_5": 26,
+    "share_in_groups_smaller_than_5": 1.0
+   },
+   "L7_coarse_plz1_ageband_decade": {
+    "eligible_rows": 26,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 31,
+    "rows_in_groups_smaller_than_5": 26,
+    "share_in_groups_smaller_than_5": 1.0
+   }
+  },
+  "without_age_all_rows": {
+   "N1_plz": {
+    "eligible_rows": 6089,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 682,
+    "rows_in_groups_smaller_than_5": 5338,
+    "share_in_groups_smaller_than_5": 0.877
+   },
+   "N2_plz_date": {
+    "eligible_rows": 5359,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 1412,
+    "rows_in_groups_smaller_than_5": 5354,
+    "share_in_groups_smaller_than_5": 0.999
+   },
+   "N3_plz_date_time": {
+    "eligible_rows": 5126,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 1645,
+    "rows_in_groups_smaller_than_5": 5126,
+    "share_in_groups_smaller_than_5": 1.0
+   },
+   "N4_place_date_time": {
+    "eligible_rows": 5556,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 1215,
+    "rows_in_groups_smaller_than_5": 5556,
+    "share_in_groups_smaller_than_5": 1.0
+   }
+  }
+ },
+ "summary": {
+  "free_text_columns_never_echoed": [
+   "Sachverhalt",
+   "Sichtungsort",
+   "Identifikation",
+   "Identifikations_Gruppe"
+  ],
+  "rows": 6771,
+  "rows_with_at_least_one_flag": 2015,
+  "rule_counts": {
+   "datum_before_1972": 14,
+   "duplicate_sachverhalt_text": 30,
+   "gemeldet_epoch_1970_01_01": 1,
+   "hendry_S_unclear_meaning": 24,
+   "hendry_case_variant": 1,
+   "land_not_a_country": 2,
+   "land_placeholder": 11,
+   "missing_datum": 263,
+   "missing_fallnummer": 1,
+   "missing_land": 6,
+   "plz_format_unexpected_for_land": 67,
+   "plz_nonnumeric_or_over_5_digits": 93,
+   "plz_unvollstaendig_4_or_more_digits": 110,
+   "plz_zero": 1,
+   "sachverhalt_age_phrase_unclassified": 57,
+   "sachverhalt_direct_identifier_pattern": 4,
+   "sachverhalt_person_age_strict": 1555,
+   "sichtungsort_street_with_number": 3
+  }
+ }
+}
