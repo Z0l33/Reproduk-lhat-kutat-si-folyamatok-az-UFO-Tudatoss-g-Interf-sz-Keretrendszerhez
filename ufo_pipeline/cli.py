@@ -38,6 +38,10 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("profile", help="structural profile of a CSV (counts only, no free text)")
     p.add_argument("file")
 
+    p = sub.add_parser("gep-qa", help="read-only data-quality and privacy screen (counts only)")
+    p.add_argument("file")
+    p.add_argument("--out", help="write the JSON report here")
+
     p = sub.add_parser("analyze", help="run one analysis config")
     p.add_argument("--config", required=True)
     p.add_argument("--out", default="results")
@@ -75,6 +79,14 @@ def main(argv: Optional[List[str]] = None) -> int:
                           run_url=args.run_url)
             print(json.dumps(report, indent=2, sort_keys=True))
             return 1 if report["rejected"] or "failed" in report["datasets"].values() else 0
+        if args.command == "gep-qa":
+            import json
+            from .gep_qa import analyse
+            text = json.dumps(analyse(args.file), indent=2, ensure_ascii=False, sort_keys=True)
+            if args.out:
+                Path(args.out).write_text(text + "\n", encoding="utf-8")
+            print(text)
+            return 0
         if args.command == "profile":
             import json
             from .profile import profile_csv

@@ -40,9 +40,24 @@ jobs:
             python -m ufo_pipeline profile "$f" | tee -a "$GITHUB_STEP_SUMMARY" profile.json
             echo '```' >> "$GITHUB_STEP_SUMMARY"
           done
+      - name: Read-only quality and privacy screen (counts only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ds="${{ inputs.dataset || 'gep-ufo-uap-2026-10' }}"
+          shopt -s nullglob
+          for f in "data/raw/$ds"/*.csv; do
+            python -m ufo_pipeline gep-qa "$f" --out qa-report.json > /dev/null
+            echo "### QA report for $f" >> "$GITHUB_STEP_SUMMARY"
+            echo '```json' >> "$GITHUB_STEP_SUMMARY"
+            cat qa-report.json >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          done
+          test -s qa-report.json
       - uses: actions/upload-artifact@v4
         with:
           name: profile
           path: |
             profile.json
+            qa-report.json
             provenance/*.json
