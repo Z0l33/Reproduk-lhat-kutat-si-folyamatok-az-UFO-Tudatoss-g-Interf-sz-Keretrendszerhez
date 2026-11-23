@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from .hashing import sha256_file
 from .profile import _date, _decode
+from .reid_risk import assess as reid_assess
 
 QA_VERSION = 1
 CATEGORY_COLUMNS = ("Land", "Zeitzone", "Klassifikation_Hynek", "Klassifikation_Hendry",
@@ -524,6 +525,23 @@ def analyse(path: Union[str, Path]) -> Dict[str, Any]:
         if v and ORT_PATTERNS["street_suffix"].search(v) and ORT_PATTERNS["has_digit"].search(v):
             flag("sichtungsort_street_with_number", i)
 
+    # --- re-identification risk estimate (aggregate only)
+    _broad_rx = re.compile(r"\b(\d{1,2})[- ]?jährig|\b(\d{1,2}) Jahre alt", re.I)
+    broad_set = set(broad_only)
+    risk_rows = []
+    for i in range(n):
+        cohort = "strict" if strict_ages.get(i) else "unclassified" if i in broad_set else "none"
+        ages = list(strict_ages.get(i) or [])
+        if cohort == "unclassified":
+            m = _broad_rx.search(sach[i])
+            ages = [int(m.group(1) or m.group(2))] if m else []
+        risk_rows.append({
+            "plz": plz[i] if plz[i].isdigit() else "", "place": _norm(ort[i]),
+            "date": datum[i].date().isoformat() if precision[i] == "full" and datum[i] else "",
+            "time": c.get("lokale Uhrzeit", [""] * n)[i] if TIME_RE.match(c.get("lokale Uhrzeit", [""] * n)[i]) else "",
+            "ages": ages, "cohort": cohort})
+    report["reidentification_risk"] = reid_assess(risk_rows)
+
     # --- summary
     flagged = set().union(*flags.values()) if flags else set()
     report["summary"] = {
@@ -536,9 +554,12 @@ def analyse(path: Union[str, Path]) -> Dict[str, Any]:
                   "dates.Datum_unparsable_breakdown", "classification.value_counts",
                   "geography_deep (counts, lengths, character kinds, group sizes)",
                   "summary.rule_counts for structural rules (missing_*, datum_*, plz_*, hendry_*, land_*)"],
-        "heuristic_hits": ["privacy_screen.*.rows_matching", "privacy_screen.age_analysis",
+        "heuristic_hits": ["reidentification_risk (risk estimate only, file-internal)",
+                           "privacy_screen.*.rows_matching", "privacy_screen.age_analysis",
                            "summary.rule_counts: sachverhalt_*, sichtungsort_*, duplicate_sachverhalt_text"],
         "unverified_assumptions": [
+            "that uniqueness inside this file reflects uniqueness in the real population "
+            "(reidentification_risk.assumptions)",
             "that the country-specific PLZ formats used for the consistency check (PLZ_DIGITS_BY_LAND) are "
             "the right expectation for every row of that country",
             "that PLZ_unvollstaendig holds truncated postal codes (see geography_deep.PLZ_unvollstaendig)",

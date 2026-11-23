@@ -245,3 +245,70 @@ class GeographyDeep(unittest.TestCase):
                        dict(Land="Deutschland", PLZ="", PLZ_unvollstaendig="8033"))
         b = rep["geography_deep"]["PLZ_unvollstaendig"]["reading_bands"]
         self.assertEqual((b["4_digits"], b["4_digits_in_land_with_4_digit_postcodes"]), (2, 1))
+
+
+class ReidentificationRisk(unittest.TestCase):
+    def rep(self, rows):
+        return QA().run_qa(*[line(Fallnummer=f"id{i}", **kw) for i, kw in enumerate(rows)])["reidentification_risk"]
+
+    def person(self, age, plz="80331", datum="2020-01-01", ort="Ortsname", **kw):
+        return dict(Sachverhalt=f"Die {age}-jährige Frau sah es", PLZ=plz, Datum=datum, Sichtungsort=ort, **kw)
+
+    def test_groups_smaller_than_5_are_merged_not_listed(self):
+        rows = [self.person(40) for _ in range(6)] + [self.person(41, plz="10115"), self.person(42, plz="20095"),
+                                                      self.person(43, plz="30159")]
+        r = self.rep(rows)["strict_age_cohort"]["L3_plz_age_date"]
+        self.assertEqual(r["eligible_rows"], 9)
+        self.assertEqual(r["rows_in_groups_smaller_than_5"], "<5")           # 3 unique rows -> suppressed
+        self.assertEqual(r["share_in_groups_smaller_than_5"], round(3 / 9, 3))
+        self.assertEqual(r["risk_indicator"], "high")   # 33% is in the 25-75% band
+
+    def test_no_keys_codes_or_place_names_in_output(self):
+        rows = [self.person(40 + i, plz=f"7{i}123", ort=f"Geheimort{i}") for i in range(8)]
+        dump = json.dumps(self.rep(rows))
+        for needle in ("Geheimort", "7012", "71123", "80331", "2020-01-01", "id0"):
+            self.assertNotIn(needle, dump)
+
+    def test_reduced_or_missing_dates_never_enter_date_levels(self):
+        rows = ([self.person(40, datum="2020") for _ in range(5)] + [self.person(40, datum="05.2020")] * 5
+                + [self.person(40, datum="") for _ in range(5)] + [self.person(40) for _ in range(5)])
+        r = self.rep(rows)["strict_age_cohort"]
+        self.assertEqual(r["L2_plz_age"]["eligible_rows"], 20)
+        self.assertEqual(r["L3_plz_age_date"]["eligible_rows"], 5)          # only full dates
+        self.assertEqual(r["L3_plz_age_date"]["rows_excluded_missing_component_or_reduced_date"], 15)
+
+    def test_strict_and_unclassified_cohorts_are_separate(self):
+        rows = [self.person(40) for _ in range(6)] + [dict(Sachverhalt="das Haus ist 90 Jahre alt", PLZ="80331",
+                                                           Datum="2020-01-01") for _ in range(6)]
+        r = self.rep(rows)
+        self.assertEqual(r["cohorts"]["strict_person_bound_age"], 6)
+        self.assertEqual(r["cohorts"]["unclassified_age_phrase_not_verified"], 6)
+        self.assertEqual(r["unclassified_cohort_not_verified"]["L2_plz_age"]["eligible_rows"], 6)
+        self.assertEqual(r["strict_age_cohort"]["L2_plz_age"]["eligible_rows"], 6)
+
+    def test_minors_use_stricter_threshold_and_banded_share(self):
+        adults = [self.person(40) for _ in range(6)]
+        few_minors = [self.person(12, plz=f"1000{i}") for i in range(7)]
+        r = self.rep(adults + few_minors)
+        self.assertEqual(r["cohorts"]["minors_any_strict_age_under_18"], "<10")
+        m = r["minors_strict_cohort_banded_and_suppressed"]["L2_plz_age"]
+        self.assertEqual(m["eligible_rows"], "<10")
+        self.assertNotIn("share_in_groups_smaller_than_5", m)
+        many = self.rep([self.person(12, plz=f"1{i:04d}") for i in range(12)])
+        m = many["minors_strict_cohort_banded_and_suppressed"]["L2_plz_age"]
+        self.assertEqual(m["eligible_rows"], 12)
+        self.assertEqual(m["share_in_groups_smaller_than_5_band"], "75%+")
+        self.assertNotIn("share_in_groups_smaller_than_5", m)
+        self.assertNotIn("risk_indicator", m)
+
+    def test_small_cohort_is_suppressed(self):
+        r = self.rep([self.person(40) for _ in range(3)])["strict_age_cohort"]["L2_plz_age"]
+        self.assertEqual(r["status"], "suppressed: too few rows")
+        self.assertEqual(r["eligible_rows"], "<5")
+
+    def test_generalised_level_reduces_uniqueness(self):
+        rows = [self.person(40 + i % 3, plz=f"80{i % 3}{i % 7}1", datum=f"2020-01-{i % 9 + 1:02d}")
+                for i in range(30)]
+        r = self.rep(rows)["strict_age_cohort"]
+        self.assertGreaterEqual(r["L3_plz_age_date"]["share_in_groups_smaller_than_5"],
+                                r["L6_generalised_plz2_ageband_month"]["share_in_groups_smaller_than_5"])
