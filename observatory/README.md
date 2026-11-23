@@ -1,6 +1,8 @@
 # UFO Research Observatory (static page source)
 
 `index.html` is generated: `python observatory/build.py` embeds only aggregates from `reports/gep-ufo-uap-2026-10.qa.json` into `template.html`.
-`tests/test_site.py` fails if `index.html` is stale. The status block in the template is hand-maintained and dated; it does not update itself.
+`tests/test_observatory.py` fails if `index.html` is stale. The status block in the template is hand-maintained and dated; it does not update itself.
 
 This directory is a source export only. It is not deployed anywhere, there is no hosting configuration, and publishing it publicly is a separate decision.
+
+External resource: the page loads fonts (Inter, Space Grotesk, JetBrains Mono) from Google Fonts. Visitors' browsers therefore contact Google when the page is opened. If that is not acceptable for a public deployment, self-host the fonts or drop the `<link>` (the page falls back to system fonts).
