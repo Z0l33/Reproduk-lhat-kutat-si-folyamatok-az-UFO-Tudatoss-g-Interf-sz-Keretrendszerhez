@@ -187,9 +187,37 @@ def test_manual_item_closes_only_with_a_complete_human_record():
     for field in a11y.CLOSURE_FIELDS:
         partial = {k: v for k, v in CLOSURE.items() if k != field}
         out = manual(partial)
-        assert out["done"] is False and out["closure_incomplete"] == [field] and "closure" not in out
+        assert out["done"] is False and list(out["closure_problems"]) == [field] and "closure" not in out
         assert manual({**CLOSURE, field: "  "})["done"] is False
     assert manual("yes")["done"] is False
+
+
+@pytest.mark.parametrize("field,value,fragment", [
+    ("performed_on", "2026-13-01", "calendar"), ("performed_on", "2026-02-30", "calendar"), ("performed_on", "2026-2-3", "YYYY-MM-DD"),
+    ("performed_on", "01/12/2026", "YYYY-MM-DD"), ("performed_on", " 2026-12-01", "YYYY-MM-DD"), ("performed_on", "20261201", "YYYY-MM-DD"),
+    ("performed_on", 20261201, "string"), ("performed_on", None, "string"),
+    ("environment", "NVDA", "version"), ("environment", "Firefox", "version"), ("environment", "12345678", "version"),
+    ("environment", "n/a", "placeholder"), ("environment", "TBD", "placeholder"), ("environment", 11, "string"),
+    ("performed_by", "TODO", "placeholder"), ("performed_by", "ab", "short"), ("performed_by", ["A"], "string"),
+    ("result", "ok", "placeholder"), ("result", "-", "placeholder"), ("result", {"a": 1}, "string"),
+])
+def test_invalid_closure_fields_keep_the_item_open(field, value, fragment):
+    out = manual({**CLOSURE, field: value})
+    assert out["done"] is False and "closure" not in out
+    assert fragment in out["closure_problems"][field] and set(out["closure_problems"]) == {field}
+    assert a11y.derive_overall([out])["status"] != "PASS"
+
+
+@pytest.mark.parametrize("env", ["NVDA 2025.3 / Firefox 133", "VoiceOver, iOS 19.1, iPhone 15", "Pixel 8, Chrome 131"])
+def test_valid_environment_and_dates_are_accepted(env):
+    assert manual({**CLOSURE, "environment": env, "performed_on": "2028-02-29"})["done"] is True
+
+
+def test_closure_record_must_be_an_object_and_extra_fields_are_dropped():
+    for bad in ([], ["x"], 5, "text", {}):
+        out = manual(bad)
+        assert out["done"] is False and out["closure_problems"]
+    assert manual({**CLOSURE, "note": "extra"})["closure"] == CLOSURE
 
 
 def test_overall_breakdown_and_closed_manual_items():
