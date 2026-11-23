@@ -29,6 +29,14 @@ from pathlib import Path
 OBS = Path(__file__).resolve().parent
 INDEX = OBS / "index.html"
 REPORT = OBS / "a11y-report.json"
+MANUAL_RESULTS = OBS / "a11y-manual-results.json"
+CLOSURE_FIELDS = ("result", "performed_by", "performed_on", "environment")
+CLOSURE_RULE = ("A MANUAL REQUIRED item is closed only by a human record in observatory/a11y-manual-results.json "
+                "({item id: {result, performed_by, performed_on (YYYY-MM-DD), environment (tool, version, device)}}). "
+                "All four fields must be non-empty; with any missing the item stays open. This script never closes an item "
+                "itself, and a closed item keeps the status MANUAL REQUIRED with done=true and its closure record shown. "
+                "A closed manual item does not turn NOT VERIFIED items into PASS; the overall status is PASS only when no "
+                "item is NOT VERIFIED and no manual item is open.")
 TOOL_VERSION = "1"
 PASS, MANUAL, NOTVER = "PASS", "MANUAL REQUIRED", "NOT VERIFIED"
 STATUSES = (PASS, MANUAL, NOTVER)
@@ -319,10 +327,14 @@ def normalize_item(item):
             notes.append("MANUAL REQUIRED without a description of the human check")
             st = NOTVER
         else:
-            done = bool(item.get("done")) and bool(str(item.get("result", "")).strip())
+            cl = item.get("closure") or {}
+            done = isinstance(cl, dict) and all(str(cl.get(f, "")).strip() for f in CLOSURE_FIELDS)
             out["needed_check"], out["done"] = need_check, done
             if done:
-                out["result"] = item["result"]
+                out["closure"] = {f: str(cl[f]) for f in CLOSURE_FIELDS}
+            elif cl:
+                out["closure_incomplete"] = sorted(f for f in CLOSURE_FIELDS if not str(cl.get(f, "")).strip()) \
+                    if isinstance(cl, dict) else list(CLOSURE_FIELDS)
     if st == NOTVER:
         out["reason"] = "; ".join(notes) or str(item.get("reason") or "no evidence yet")
     out["status"] = st
@@ -330,17 +342,19 @@ def normalize_item(item):
 
 
 def derive_overall(items):
-    """PASS only if there is at least one item and every item is PASS (manual items count as open until done)."""
+    """Detailed overall status. PASS only if there is at least one item, none is NOT VERIFIED and no manual item is open."""
     if not items:
-        return {"status": NOTVER, "open_items": 0, "reason": "no evidence: the report has no items"}
-    open_ = [i for i in items if i["status"] != PASS or (i["status"] == MANUAL and not i.get("done"))]
-    if any(i["status"] == NOTVER for i in items):
-        status = NOTVER
-    elif open_:
-        status = MANUAL
-    else:
-        status = PASS
-    return {"status": status, "open_items": len(open_)}
+        return {"status": NOTVER, "open_items": 0, "reason": "no evidence: the report has no items",
+                "open": {"manual_required": [], "not_verified": []}, "closed_manual": [], "passed": 0}
+    manual_open = [i["id"] for i in items if i["status"] == MANUAL and not i.get("done")]
+    closed = [i["id"] for i in items if i["status"] == MANUAL and i.get("done")]
+    notver = [i["id"] for i in items if i["status"] == NOTVER]
+    status = NOTVER if notver else (MANUAL if manual_open else PASS)
+    return {"status": status, "open_items": len(manual_open) + len(notver),
+            "open": {"manual_required": manual_open, "not_verified": notver},
+            "closed_manual": closed, "passed": sum(1 for i in items if i["status"] == PASS),
+            "reason": {NOTVER: "at least one item has no evidence", MANUAL: "a human check is still open",
+                       PASS: "every item is PASS or a closed human check"}[status]}
 
 
 def counts(items):
@@ -350,15 +364,26 @@ def counts(items):
     return c
 
 
+def load_manual_results():
+    if not MANUAL_RESULTS.exists():
+        return {}
+    data = json.loads(MANUAL_RESULTS.read_text(encoding="utf-8"))
+    need(isinstance(data, dict), "manual results file must be an object keyed by item id")
+    return data
+
+
 def build_items(html):
     raw = []
     for cid, title, fn in AUTOMATED:
         proved = fn(html)           # raises CheckFailed: a failing check is not a category
         raw.append({"id": cid, "title": title, "scope": SCOPE, "status": PASS,
                     "evidence": {"test": fn.__name__, "proved": proved}})
+    results = load_manual_results()
+    unknown = set(results) - {m[0] for m in MANUAL_ITEMS}
+    need(not unknown, f"manual results for unknown items: {sorted(unknown)}")
     for mid, title, how in MANUAL_ITEMS:
         raw.append({"id": mid, "title": title, "scope": "Human check on a real device or tool.", "status": MANUAL,
-                    "needed_check": how, "done": False})
+                    "needed_check": how, "closure": results.get(mid)})
     for nid, title, why in NOT_VERIFIED_ITEMS:
         raw.append({"id": nid, "title": title, "scope": "Not covered by this report.", "status": NOTVER, "reason": why})
     return [normalize_item(i) for i in raw]
@@ -368,7 +393,7 @@ def build_content(html):
     items = build_items(html)
     return {"schema": 1, "scope": SCOPE, "input": {"file": "observatory/index.html",
                                                     "sha256": hashlib.sha256(html.encode("utf-8")).hexdigest()},
-            "items": items, "counts": counts(items), "overall": derive_overall(items)}
+            "manual_closure_rule": CLOSURE_RULE, "items": items, "counts": counts(items), "overall": derive_overall(items)}
 
 
 def content_hash(content):

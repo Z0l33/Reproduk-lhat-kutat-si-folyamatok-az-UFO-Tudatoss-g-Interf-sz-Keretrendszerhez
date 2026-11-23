@@ -171,3 +171,54 @@ def test_rendered_mobile_layout_and_target_size():
         pytest.skip(f"browser unavailable: {exc}")
     assert not overflow and hidden
     assert all(bx["width"] >= 44 and bx["height"] >= 44 for bx in boxes)
+
+
+# manual closure rule
+CLOSURE = {"result": "no double reading", "performed_by": "A. Reviewer", "performed_on": "2026-12-01", "environment": "NVDA 2025.3 / Firefox"}
+
+
+def manual(closure=None):
+    return a11y.normalize_item({"id": "m", "title": "t", "scope": "s", "status": a11y.MANUAL, "needed_check": "listen", "closure": closure})
+
+
+def test_manual_item_closes_only_with_a_complete_human_record():
+    assert manual()["done"] is False
+    assert manual(CLOSURE)["done"] is True and manual(CLOSURE)["closure"] == CLOSURE
+    for field in a11y.CLOSURE_FIELDS:
+        partial = {k: v for k, v in CLOSURE.items() if k != field}
+        out = manual(partial)
+        assert out["done"] is False and out["closure_incomplete"] == [field] and "closure" not in out
+        assert manual({**CLOSURE, field: "  "})["done"] is False
+    assert manual("yes")["done"] is False
+
+
+def test_overall_breakdown_and_closed_manual_items():
+    nv = a11y.normalize_item({"id": "n", "title": "t", "scope": "s", "status": a11y.NOTVER, "reason": "none"})
+    closed, opened = manual(CLOSURE), {**manual(), "id": "m2"}
+    closed["id"] = "m1"
+    o = a11y.derive_overall([passing(), closed])
+    assert o["status"] == "PASS" and o["open_items"] == 0 and o["closed_manual"] == ["m1"]
+    o = a11y.derive_overall([passing(), closed, opened])
+    assert o["status"] == a11y.MANUAL and o["open"] == {"manual_required": ["m2"], "not_verified": []}
+    o = a11y.derive_overall([passing(), closed, opened, nv])
+    assert o["status"] == a11y.NOTVER and o["open"] == {"manual_required": ["m2"], "not_verified": ["n"]} and o["passed"] == 1 and o["open_items"] == 2
+
+
+def test_committed_breakdown_is_consistent_and_rule_is_in_the_report():
+    c = COMMITTED["content"]
+    ids = lambda st: [i["id"] for i in c["items"] if i["status"] == st]
+    assert c["overall"]["open"] == {"manual_required": ids(a11y.MANUAL), "not_verified": ids(a11y.NOTVER)}
+    assert c["overall"]["passed"] == c["counts"][a11y.PASS] and c["manual_closure_rule"] == a11y.CLOSURE_RULE
+    assert "never closes an item itself" in c["manual_closure_rule"]
+
+
+def test_manual_results_file_closes_items_and_unknown_ids_are_rejected(tmp_path, monkeypatch):
+    f = tmp_path / "res.json"
+    monkeypatch.setattr(a11y, "MANUAL_RESULTS", f)
+    f.write_text(json.dumps({"sr-nvda-voiceover": CLOSURE, "keyboard-focus": {"result": "ok"}}), encoding="utf-8")
+    items = {i["id"]: i for i in a11y.build_items(HTML)}
+    assert items["sr-nvda-voiceover"]["done"] is True and items["keyboard-focus"]["done"] is False
+    assert a11y.derive_overall(list(items.values()))["closed_manual"] == ["sr-nvda-voiceover"]
+    f.write_text(json.dumps({"made-up": CLOSURE}), encoding="utf-8")
+    with pytest.raises(a11y.CheckFailed):
+        a11y.build_items(HTML)
