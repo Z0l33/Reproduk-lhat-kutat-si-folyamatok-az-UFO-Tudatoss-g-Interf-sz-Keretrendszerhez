@@ -92,6 +92,14 @@
    "missing": 263,
    "unparsable": 627
   },
+  "Datum_precision": {
+   "full": 5881,
+   "missing": 263,
+   "other_unparsable": 0,
+   "year_month": 343,
+   "year_only": 284
+  },
+  "Datum_precision_sums_to_rows": true,
   "Datum_unparsable_breakdown": {
    "by_error_type": {
     "year_month_only": 343,
@@ -120,7 +128,14 @@
    "invalid_hh_mm": 0
   },
   "both_dates_present": 5020,
-  "datum_missing_but_gemeldet_present": 708,
+  "delay_basis": "reporting-delay and order checks use only rows with full-precision Datum and a parsed Gemeldet; year- or month-precision events never get a daily delay",
+  "gemeldet_present_by_datum_precision": {
+   "full": 5020,
+   "missing": 231,
+   "other_unparsable": 0,
+   "year_month": 258,
+   "year_only": 219
+  },
   "lokale Uhrzeit": {
    "filled": 6037,
    "invalid_hh_mm": 0
