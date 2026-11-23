@@ -4,6 +4,7 @@ IMPORTANT: `make_logic_fixture` re-labels SYNTHETIC data as if it were a verifie
 dataset so that the confirmatory / replication LOGIC can be tested end to end. Such fixtures are
 fake, live only in temporary directories, and are never evidence of anything.
 """
+import copy
 import tempfile
 from pathlib import Path
 
@@ -26,9 +27,46 @@ def make_prereg(dataset_id, *, registered_at="2029-01-01T00:00:00+00:00",
             "dataset_id": dataset_id, "analysis": {**ANALYSIS, **analysis_over}}
 
 
+def write_policy(root, dataset_id, policy="auto"):
+    """policy: 'auto' = explicit empty-denylist decision for this dataset; 'repo' = copy the repo's real
+    policy; None = no policy file; a dict = use as given."""
+    import json
+    import shutil
+    target = Path(root) / "policies" / "sensitive_columns.json"
+    if policy is None:
+        return
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if policy == "repo":
+        shutil.copy(Path(__file__).resolve().parents[1] / "policies" / "sensitive_columns.json", target)
+    elif policy == "auto":
+        target.write_text(json.dumps({"schema_version": 1, "global_denied_column_patterns": [],
+                                      "datasets": {dataset_id: {"denied_columns": []}}}), encoding="utf-8")
+    else:
+        target.write_text(json.dumps(policy), encoding="utf-8")
+
+
+def add_column(paths, name, value_fn):
+    """Append a column to a synthetic CSV and refresh the recorded size and SHA-256 in its provenance."""
+    import csv
+    from ufo_pipeline.hashing import sha256_file
+    csv_path = Path(paths["csv"])
+    with open(csv_path, newline="", encoding="utf-8") as fh:
+        rows = list(csv.reader(fh))
+    rows[0].append(name)
+    for i, r in enumerate(rows[1:]):
+        r.append(value_fn(i))
+    with open(csv_path, "w", newline="", encoding="utf-8") as fh:
+        csv.writer(fh).writerows(rows)
+    prov = load_json(paths["provenance"])
+    for f in prov["files"]:
+        if f["name"] == csv_path.name:
+            f["sha256"], f["size"] = sha256_file(csv_path), csv_path.stat().st_size
+    write_json(paths["provenance"], prov)
+
+
 def make_logic_fixture(scenario, *, dataset_id, seed=0, status="verified", file_status="verified",
                        prereg=True, prereg_over=None, analysis_over=None, extra_prereg=None,
-                       n_per_group=120, root=None, record_id="0"):
+                       n_per_group=120, root=None, record_id="0", policy="auto", explicit_allowlist=True):
     root = Path(root or tempfile.mkdtemp())
     paths = write_dataset(scenario, root, n_per_group=n_per_group, seed=seed)
     prov = load_json(paths["provenance"])
@@ -38,10 +76,14 @@ def make_logic_fixture(scenario, *, dataset_id, seed=0, status="verified", file_
     for f in prov["files"]:
         f["status"] = file_status
     write_json(paths["provenance"], prov)
-    analysis = {**ANALYSIS, **(analysis_over or {})}
+    analysis = {**copy.deepcopy(ANALYSIS), **(analysis_over or {})}
     cfg = {"analysis_id": f"fixture-{dataset_id}", "dataset_provenance": paths["provenance"].name,
-           "data_file": paths["csv"].name, "validation": VALIDATION,
+           "data_file": paths["csv"].name, "validation": copy.deepcopy(VALIDATION),
            "leakage": {"feature_columns": ["covariate"]}, "analysis": analysis}
+    if explicit_allowlist:
+        from ufo_pipeline.access import referenced_columns
+        cfg["data_access"] = {"allowed_columns": sorted(referenced_columns(cfg))}
+    write_policy(root, dataset_id, policy)
     prereg_doc = None
     if prereg:
         prereg_doc = make_prereg(dataset_id, **(prereg_over or {}))

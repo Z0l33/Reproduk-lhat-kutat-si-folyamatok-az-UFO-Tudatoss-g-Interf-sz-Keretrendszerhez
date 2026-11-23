@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
+from .access import ColumnAccessError
 from .pipeline import evaluate_and_reassess, run_analysis, write_report
 from .provenance import IntegrityError, load_json, write_json
 from .synthetic import SCENARIOS, write_dataset
@@ -129,6 +130,9 @@ def main(argv: Optional[List[str]] = None) -> int:
             paths = write_dataset(args.scenario, args.out, seed=args.seed)
             print(f"wrote {paths['csv']} and {paths['provenance']} (SYNTHETIC - never evidence)")
             return 0
+    except ColumnAccessError as exc:
+        print(f"COLUMN ACCESS DENIED: {exc}", file=sys.stderr)
+        return 2
     except IntegrityError as exc:
         print(f"INTEGRITY ERROR: {exc}", file=sys.stderr)
         return 2

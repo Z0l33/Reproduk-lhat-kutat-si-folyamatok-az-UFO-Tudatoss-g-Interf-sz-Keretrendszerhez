@@ -57,3 +57,14 @@ Workflow for a real dataset: add the entry to the manifest → `fetch` (status `
 - Statistics cover a two-group comparison of a continuous outcome. Other designs need new, preregistered analysis code.
 - Leakage detection finds the listed patterns; absence of findings is not proof of absence of leakage.
 - The statistical verdict is a methodological gate. Passing it says nothing about *why* an effect exists.
+
+## Column access (allowlist between loading and analysis)
+
+Real datasets need an explicit `data_access.allowed_columns` list in the analysis config and an entry in
+`policies/sensitive_columns.json`. Denied columns (per-dataset list plus global name patterns, e.g. free
+text, place and postal-code fields) can be neither allowed nor referenced anywhere in the config. All
+checks run **before** the data file is opened, and the loader keeps only the allowed columns, so a denied
+column never reaches validation, leakage detection or statistics. A violation stops the run with
+`COLUMN ACCESS DENIED` (exit code 2) and writes no report. The policy location is fixed; a config cannot
+override it. A real dataset without a policy entry is refused. Not covered: re-identification through
+combinations of *allowed* columns (see `reports/`); choose allowlists conservatively.
