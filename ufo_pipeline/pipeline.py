@@ -8,7 +8,7 @@ from . import __version__
 from .evidence import assess, evaluate_replication
 from .prereg import check_prereg, load_prereg, prereg_hash
 from .provenance import (dataset_is_verified, load_json, require_local_file_integrity,
-                         utc_now_iso, write_json)
+                         utc_now_iso, validate_provenance, write_json)
 from .stats import analyze_two_groups
 from .validation import detect_leakage, load_csv, parse_float, validate_schema
 
@@ -47,9 +47,11 @@ def run_analysis(config: Dict[str, Any], *, base_dir: PathLike = ".") -> Dict[st
 
     prov = load_json(base / config["dataset_provenance"])
     data_path = base / config["data_file"]
+    provenance_problems = validate_provenance(prov)
     integrity = require_local_file_integrity(prov, data_path)  # raises IntegrityError on mismatch
-    synthetic = bool(prov.get("synthetic"))
-    verified = dataset_is_verified(prov)
+    synthetic = prov.get("synthetic") is True
+    # Re-hash EVERY file of the dataset locally; a 'verified' status string alone is never trusted.
+    verified = dataset_is_verified(prov, data_path.parent)
 
     columns, rows = load_csv(data_path)
     validation = validate_schema(columns, rows, config.get("validation", {}))
@@ -101,6 +103,7 @@ def run_analysis(config: Dict[str, Any], *, base_dir: PathLike = ".") -> Dict[st
         "tool_version": __version__,
         "dataset": {"dataset_id": prov["dataset_id"], "record_id": prov.get("record_id"),
                     "doi": prov.get("doi"), "synthetic": synthetic, "provenance_status": prov.get("status"),
+                    "provenance_problems": provenance_problems,
                     "file_sha256": {integrity["name"]: integrity["actual"]},
                     "first_retrieved_at": prov.get("first_retrieved_at")},
         "validation": validation, "leakage": leakage, "preregistration": prereg_info,

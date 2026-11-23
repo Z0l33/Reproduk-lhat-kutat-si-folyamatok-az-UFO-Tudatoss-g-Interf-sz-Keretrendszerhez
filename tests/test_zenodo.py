@@ -8,6 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from ufo_pipeline.provenance import dataset_is_verified, validate_provenance
 from ufo_pipeline.zenodo import ZenodoError, load_manifest, retrieve_dataset, validate_entry
 
 FAKE_ID = "0"
@@ -64,6 +65,13 @@ class RetrieveTests(unittest.TestCase):
         self.assertTrue((self.dest / "data.csv").exists())
         self.assertFalse((self.dest / "data.csv.part").exists())
         self.assertEqual(prov["first_retrieved_at"], "2026-01-01T00:00:00+00:00")
+
+    def test_fetched_record_passes_strict_validation_and_local_rehash(self):
+        prov, _ = self.run_it()
+        self.assertEqual(validate_provenance(prov), [])
+        self.assertTrue(dataset_is_verified(prov, self.dest))
+        (self.dest / "data.csv").write_bytes(b"tampered after download")
+        self.assertFalse(dataset_is_verified(prov, self.dest))
 
     def test_first_retrieved_at_is_preserved(self):
         client = FakeClient(record())
@@ -152,6 +160,11 @@ class ManifestTests(unittest.TestCase):
         self.assertTrue(validate_entry(entry(files=[])))
         self.assertTrue(validate_entry(entry(synthetic=True)))
         self.assertTrue(validate_entry(entry(dataset_id="Bad ID")))
+        # a trailing newline must not slip through any of the anchored patterns
+        self.assertTrue(validate_entry(entry(record_id="0\n")))
+        self.assertTrue(validate_entry(entry(doi="10.5281/zenodo.0\n")))
+        self.assertTrue(validate_entry(entry(dataset_id="ok\n")))
+        self.assertTrue(validate_entry(entry(files=[{"name": "a.csv", "sha256": SHA + "\n"}])))
 
     def test_load_manifest(self):
         tmp = Path(tempfile.mkdtemp())

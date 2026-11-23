@@ -3,7 +3,8 @@ import unittest
 from pathlib import Path
 
 from ufo_pipeline.hashing import digests_equal, hash_file, parse_checksum
-from ufo_pipeline.provenance import (IntegrityError, check_local_file, dataset_is_verified,
+from ufo_pipeline.provenance import (IntegrityError, check_local_file, dataset_claims_verified,
+                                     dataset_is_verified,
                                      load_json, require_local_file_integrity, validate_provenance,
                                      write_json)
 
@@ -48,7 +49,8 @@ class ProvenanceTests(unittest.TestCase):
         self.f.write_bytes(b"abc")
         self.prov = {"schema_version": 1, "dataset_id": "x", "source": "zenodo", "record_id": "0",
                      "doi": "10.5281/zenodo.0", "synthetic": False, "status": "verified", "errors": [],
-                     "files": [{"name": "abc.txt", "sha256": SHA256_ABC, "status": "verified"}]}
+                     "first_retrieved_at": "2030-01-01T00:00:00+00:00",
+                     "files": [{"name": "abc.txt", "size": 3, "sha256": SHA256_ABC, "status": "verified"}]}
 
     def test_roundtrip_and_validate(self):
         p = self.tmp / "p.json"
@@ -72,12 +74,20 @@ class ProvenanceTests(unittest.TestCase):
         self.assertFalse(check_local_file(self.prov, other)["ok"])
 
     def test_dataset_is_verified_rules(self):
-        self.assertTrue(dataset_is_verified(self.prov))
-        self.assertFalse(dataset_is_verified({**self.prov, "status": "unpinned"}))
-        self.assertFalse(dataset_is_verified({**self.prov, "errors": ["boom"]}))
-        bad = {**self.prov, "files": [{"name": "a", "sha256": "x", "status": "unpinned"}]}
-        self.assertFalse(dataset_is_verified(bad))
-        self.assertFalse(dataset_is_verified({**self.prov, "files": []}))
+        self.assertTrue(dataset_is_verified(self.prov, self.tmp))
+        self.assertFalse(dataset_is_verified({**self.prov, "status": "unpinned"}, self.tmp))
+        self.assertFalse(dataset_is_verified({**self.prov, "errors": ["boom"]}, self.tmp))
+        unpinned = {**self.prov, "files": [{"name": "abc.txt", "size": 3, "sha256": SHA256_ABC,
+                                             "status": "unpinned"}]}
+        self.assertFalse(dataset_is_verified(unpinned, self.tmp))
+        self.assertFalse(dataset_is_verified({**self.prov, "files": []}, self.tmp))
+
+    def test_status_string_is_not_trusted(self):
+        """The record says 'verified' but the local file changed: must NOT count as verified."""
+        self.assertTrue(dataset_claims_verified(self.prov))
+        self.f.write_bytes(b"abd")
+        self.assertTrue(dataset_claims_verified(self.prov))  # the claim still reads 'verified'
+        self.assertFalse(dataset_is_verified(self.prov, self.tmp))
 
 
 if __name__ == "__main__":

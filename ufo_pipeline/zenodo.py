@@ -16,17 +16,14 @@ from typing import Any, Dict, List, Optional, Protocol, Union
 
 from . import __version__
 from .hashing import digests_equal, hash_file, parse_checksum
-from .provenance import (PROVENANCE_SCHEMA_VERSION, VERIFIED_FILE_STATUSES, load_json,
-                         utc_now_iso)
+from .provenance import (PROVENANCE_SCHEMA_VERSION, RECORD_ID_RE, SHA256_RE, VERIFIED_FILE_STATUSES,
+                         VERSION_DOI_RE, load_json, utc_now_iso)
 
 API_ROOT = "https://zenodo.org/api/records/"
 WEB_ROOT = "https://zenodo.org/records/"
 ALLOWED_DOWNLOAD_PREFIX = "https://zenodo.org/"
 
-RECORD_ID_RE = re.compile(r"^[0-9]+$")
-VERSION_DOI_RE = re.compile(r"^10\.5281/zenodo\.([0-9]+)$")
-SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
-SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}\Z")
 
 PathLike = Union[str, Path]
 

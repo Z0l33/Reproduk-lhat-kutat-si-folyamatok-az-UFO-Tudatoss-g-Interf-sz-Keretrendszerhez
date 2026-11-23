@@ -110,7 +110,7 @@ class ConfirmatoryLogic(unittest.TestCase):
 class ReplicationEndToEnd(unittest.TestCase):
     def pair(self, replication_scenario, **rep_kw):
         orig = run(make_logic_fixture("true_effect", dataset_id="fx-orig", seed=1))
-        fx = make_logic_fixture(replication_scenario, dataset_id="fx-rep", seed=2,
+        fx = make_logic_fixture(replication_scenario, dataset_id="fx-rep", seed=2, record_id="00",
                                 prereg_over={"require_replication": False},
                                 analysis_over={"require_replication": False},
                                 extra_prereg={"replicates_prereg_sha256": orig["preregistration"]["sha256"]}, **rep_kw)

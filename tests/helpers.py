@@ -28,12 +28,12 @@ def make_prereg(dataset_id, *, registered_at="2029-01-01T00:00:00+00:00",
 
 def make_logic_fixture(scenario, *, dataset_id, seed=0, status="verified", file_status="verified",
                        prereg=True, prereg_over=None, analysis_over=None, extra_prereg=None,
-                       n_per_group=120, root=None):
+                       n_per_group=120, root=None, record_id="0"):
     root = Path(root or tempfile.mkdtemp())
     paths = write_dataset(scenario, root, n_per_group=n_per_group, seed=seed)
     prov = load_json(paths["provenance"])
     prov.update({"dataset_id": dataset_id, "synthetic": False, "source": "zenodo",
-                 "record_id": f"fixture-{dataset_id}", "doi": f"fixture-doi-{dataset_id}",
+                 "record_id": record_id, "doi": f"10.5281/zenodo.{record_id}",
                  "status": status, "first_retrieved_at": "2030-01-01T00:00:00+00:00"})
     for f in prov["files"]:
         f["status"] = file_status
