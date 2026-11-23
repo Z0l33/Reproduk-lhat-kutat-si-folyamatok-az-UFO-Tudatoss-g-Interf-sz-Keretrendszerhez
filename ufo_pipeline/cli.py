@@ -28,6 +28,13 @@ def build_parser() -> argparse.ArgumentParser:
                    help="exit 0 for datasets that downloaded and passed the source checksum but have no "
                         "SHA-256 pin yet (first fetch). Failed datasets still exit 1; unpinned is never verified.")
 
+    p = sub.add_parser("notion-sync", help="verify 'submitted' Notion rows (dry run unless --apply)")
+    p.add_argument("--database-id", required=True)
+    p.add_argument("--dest", default="data/raw")
+    p.add_argument("--provenance-dir", default="provenance")
+    p.add_argument("--apply", action="store_true", help="write results back to Notion")
+    p.add_argument("--run-url")
+
     p = sub.add_parser("analyze", help="run one analysis config")
     p.add_argument("--config", required=True)
     p.add_argument("--out", default="results")
@@ -52,6 +59,19 @@ def main(argv: Optional[List[str]] = None) -> int:
             entries = load_manifest(args.manifest)
             print(f"manifest OK: {len(entries)} dataset(s)")
             return 0
+        if args.command == "notion-sync":
+            import json
+            import os
+            from .notion_sync import UrllibNotionClient, sync
+            token = os.environ.get("NOTION_TOKEN")
+            if not token:
+                print("NOTION_TOKEN is not set", file=sys.stderr)
+                return 2
+            report = sync(UrllibNotionClient(token), args.database_id, args.dest,
+                          args.provenance_dir, retrieve_dataset, apply=args.apply,
+                          run_url=args.run_url)
+            print(json.dumps(report, indent=2, sort_keys=True))
+            return 1 if report["rejected"] or "failed" in report["datasets"].values() else 0
         if args.command == "fetch":
             entries = load_manifest(args.manifest)
             if args.dataset:
