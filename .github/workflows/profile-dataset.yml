@@ -26,8 +26,15 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: python -m ufo_pipeline fetch --dataset "${{ inputs.dataset || 'gep-ufo-uap-2026-10' }}" --allow-unpinned
       - name: Profile every downloaded file
+        shell: bash
         run: |
-          for f in data/raw/*.csv; do
+          set -euo pipefail
+          ds="${{ inputs.dataset || 'gep-ufo-uap-2026-10' }}"
+          shopt -s nullglob
+          files=("data/raw/$ds"/*.csv)
+          if [ "${#files[@]}" -eq 0 ]; then echo "no CSV found in data/raw/$ds" >&2; exit 1; fi
+          : > profile.json
+          for f in "${files[@]}"; do
             echo "### $f" >> "$GITHUB_STEP_SUMMARY"
             echo '```json' >> "$GITHUB_STEP_SUMMARY"
             python -m ufo_pipeline profile "$f" | tee -a "$GITHUB_STEP_SUMMARY" profile.json
