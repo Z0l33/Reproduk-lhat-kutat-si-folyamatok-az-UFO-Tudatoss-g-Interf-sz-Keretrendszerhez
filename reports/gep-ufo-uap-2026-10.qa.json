@@ -143,6 +143,28 @@
   "reported_before_event": 0,
   "reported_more_than_1_year_after_event": 386
  },
+ "evidence_levels": {
+  "facts": [
+   "input",
+   "identifier",
+   "geography (counts and formats)",
+   "dates.Datum_precision",
+   "dates.Datum_unparsable_breakdown",
+   "classification.value_counts",
+   "summary.rule_counts for structural rules (missing_*, datum_*, plz_*, hendry_*)"
+  ],
+  "heuristic_hits": [
+   "privacy_screen.*.rows_matching",
+   "privacy_screen.age_analysis",
+   "summary.rule_counts: sachverhalt_*, sichtungsort_*, duplicate_sachverhalt_text"
+  ],
+  "unverified_assumptions": [
+   "that a heuristic hit corresponds to a real personal identifier (not checked: no text is read)",
+   "that PLZ_unvollstaendig and the Hynek/Hendry codes mean what their names suggest (GEP documentation not consulted)",
+   "that the dataset is free of submitter personal data, as its description states",
+   "that Datum/Gemeldet formats are consistently day-month-year (only parseability was tested)"
+  ]
+ },
  "geography": {
   "Bundesland": {
    "distinct_normalised": 224,
@@ -304,7 +326,7 @@
    "length_max": 2377,
    "length_over_1000": 33,
    "rows_matching": {
-    "age_mention": 1612,
+    "age_phrase_broad": 1612,
     "coordinates": 0,
     "email": 0,
     "first_person": 15,
@@ -322,6 +344,31 @@
     "has_digit": 28,
     "street_suffix": 21
    }
+  },
+  "age_analysis": {
+   "definition": "strict = an age phrase bound to a person noun from a closed German vocabulary; broad = any 'NN-jährig' or 'NN Jahre alt'. Heuristic: neither proves a real person.",
+   "rows_broad": 1612,
+   "rows_broad_not_strict": 57,
+   "rows_by_form": {
+    "number_jaehrig_then_person": 1555,
+    "number_jahre_alt": 6,
+    "person_then_bracket_number": 0,
+    "person_then_number_years": 1
+   },
+   "rows_strict": 1555,
+   "rows_with_more_than_one_strict_age": 9,
+   "strict_age_values": {
+    "by_band": {
+     "0-17": 170,
+     "18-39": 675,
+     "40-64": 625,
+     "65+": 94
+    },
+    "count": 1564,
+    "over_100": 0,
+    "under_18": 170
+   },
+   "unverified": "rows_broad_not_strict could not be assigned to a person or to something else without reading the text; they are neither confirmed nor dismissed."
   },
   "note": "The dataset description says submitter personal data were excluded; this screen only counts surface patterns. Manual review of flagged rows is required before any redistribution or publication.",
   "quasi_identifier_uniqueness": {
@@ -352,7 +399,9 @@
    "missing_land": 6,
    "plz_nonnumeric_or_over_5_digits": 93,
    "plz_zero": 1,
-   "sachverhalt_direct_identifier_pattern": 1614,
+   "sachverhalt_age_phrase_unclassified": 57,
+   "sachverhalt_direct_identifier_pattern": 4,
+   "sachverhalt_person_age_strict": 1555,
    "sichtungsort_street_with_number": 3
   }
  }
