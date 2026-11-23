@@ -98,3 +98,23 @@ class QA(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DateErrorTypes(unittest.TestCase):
+    def test_classification(self):
+        from ufo_pipeline.gep_qa import classify_date_value as c
+        cases = {"2020": "year_only", "2020-05": "year_month_only", "05.2020": "year_month_only",
+                 "2020-13": "year_month_invalid_month", "31.02.2020": "day_invalid_for_month",
+                 "2020-13-01": "month_out_of_range", "01.01.20": "two_digit_year",
+                 "ca. 2020": "contains_text", "2020-01-01 21:30": "date_with_time_unrecognised_format",
+                 "01.01.2020 - 03.01.2020": "range_or_several_dates", "1850-01-01": "year_implausible",
+                 "???": "other_shape"}
+        for value, expected in cases.items():
+            self.assertEqual(c(value), expected, value)
+
+    def test_report_has_no_values(self):
+        rep = QA().run_qa(line(Fallnummer="a", Datum="SECRETWORD 2020"), line(Fallnummer="b", Datum="2020"))
+        b = rep["dates"]["Datum_unparsable_breakdown"]
+        self.assertEqual(b["count"], 2)
+        self.assertEqual(b["by_error_type"], {"contains_text": 1, "year_only": 1})
+        self.assertNotIn("SECRETWORD", json.dumps(rep))

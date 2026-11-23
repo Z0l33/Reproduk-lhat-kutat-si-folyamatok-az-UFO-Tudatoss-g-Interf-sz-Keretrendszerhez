@@ -69,6 +69,61 @@ def _variants(values: List[str]) -> Dict[str, Any]:
             "rows_in_variant_groups": sum(1 for v in values if _norm(v) in multi)}
 
 
+_DT = r"(?:[0-9]{1,4}[-./][0-9]{1,2}[-./][0-9]{1,4})"
+_TIME_SUFFIX = re.compile(r"^(" + _DT + r")[ T]+[0-9]{1,2}:[0-9]{2}(?::[0-9]{2})?\Z")
+_FULL = re.compile(r"^([0-9]{1,4})[-./]([0-9]{1,2})[-./]([0-9]{1,4})\Z")
+_YEAR = re.compile(r"^[0-9]{4}\Z")
+_YM = re.compile(r"^(?:([0-9]{4})[-./]([0-9]{1,2})|([0-9]{1,2})[-./]([0-9]{4}))\Z")
+
+
+def classify_date_value(value: str) -> str:
+    """Error type of a Datum value that no known format could parse. Returns a label only."""
+    v = value.strip()
+    if _TIME_SUFFIX.match(v):
+        return "date_with_time_unrecognised_format"
+    if re.search(r"[A-Za-zÄÖÜäöüß]", v):
+        return "contains_text"
+    if len(re.findall(r"[0-9]{1,4}[-./][0-9]{1,2}[-./][0-9]{1,4}", v)) >= 2 or re.search(r"[0-9]\s*[-–/]\s*[0-9]{1,2}\.[0-9]{1,2}\.", v):
+        return "range_or_several_dates"
+    if _YEAR.match(v):
+        return "year_only"
+    m = _YM.match(v)
+    if m:
+        month = int(m.group(2) or m.group(3))
+        return "year_month_only" if 1 <= month <= 12 else "year_month_invalid_month"
+    m = _FULL.match(v)
+    if m:
+        a, b, c = m.group(1), m.group(2), m.group(3)
+        if len(a) == 4:
+            y, mo, d = int(a), int(b), int(c)
+        elif len(c) == 4:
+            y, mo, d = int(c), int(b), int(a)
+        elif len(c) == 2 and len(a) <= 2:
+            return "two_digit_year"
+        else:
+            return "full_date_shaped_ambiguous_fields"
+        if not 1 <= mo <= 12:
+            return "month_out_of_range"
+        try:
+            datetime(y, mo, d)
+        except ValueError:
+            return "day_invalid_for_month" if y >= 1 else "year_invalid"
+        if y < 1900 or y > 2026:
+            return "year_implausible"
+        return "valid_date_unrecognised_format"
+    return "other_shape"
+
+
+def _date_error_report(raw: List[str], parsed: List[Any], gemeldet_raw: List[str]) -> Dict[str, Any]:
+    bad = [i for i, (r, p) in enumerate(zip(raw, parsed)) if r and p is None]
+    types = Counter(classify_date_value(raw[i]) for i in bad)
+    shapes = Counter(_pattern(raw[i].strip()) for i in bad)
+    return {"count": len(bad), "by_error_type": _top(types, 20), "format_shapes": _top(shapes, 20),
+            "length_distribution": {str(k): v for k, v in sorted(Counter(len(raw[i].strip()) for i in bad).items())},
+            "with_gemeldet_present": sum(1 for i in bad if gemeldet_raw[i]),
+            "note": "shapes: digits shown as 9, letters as A; no concrete values are printed"}
+
+
 def analyse(path: Union[str, Path]) -> Dict[str, Any]:
     path = Path(path)
     sha_before = sha256_file(path)
@@ -155,6 +210,8 @@ def analyse(path: Union[str, Path]) -> Dict[str, Any]:
                      "unparsable": unparsable(c.get("Gemeldet", []), gemeldet),
                      "equal_1970_01_01": sum(1 for g in gemeldet if g and g == datetime(1970, 1, 1)),
                      "after_2026_10_31": sum(1 for g in gemeldet if g and g > RANGE_END)},
+        "Datum_unparsable_breakdown": _date_error_report(
+            c.get("Datum", [""] * n), datum, c.get("Gemeldet", [""] * n)),
         "both_dates_present": len(both),
         "reported_before_event": sum(1 for g, d in both if g < d),
         "reported_more_than_1_year_after_event": sum(1 for g, d in both if (g - d).days > 365),
