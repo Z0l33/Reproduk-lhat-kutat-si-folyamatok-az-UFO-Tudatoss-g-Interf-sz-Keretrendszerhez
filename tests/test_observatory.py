@@ -34,4 +34,5 @@ def test_embedded_json_cannot_break_out_of_the_script_block():
 def test_generated_page_has_no_raw_angle_bracket_in_data_block():
     html = (OBS / "index.html").read_text(encoding="utf-8")
     block = html.split("const D=")[1].split(";\nconst T=")[0]
-    assert "<" not in block and ">" not in block
+    for ch in ("<", ">", "&", "\u2028", "\u2029"):
+        assert ch not in block, repr(ch)
