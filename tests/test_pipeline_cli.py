@@ -143,12 +143,46 @@ class ReplicationEndToEnd(unittest.TestCase):
         self.assertFalse(out["original_assessment_after"]["counts_as_positive_evidence"])
 
 
+class FetchExitCodeTests(unittest.TestCase):
+    """`fetch` is exercised with a patched retrieve_dataset: no network is used."""
+
+    def run_fetch(self, status, *extra):
+        from unittest import mock
+        root = Path(tempfile.mkdtemp())
+        manifest = root / "m.json"
+        manifest.write_text(json.dumps({"schema_version": 1, "datasets": [{
+            "dataset_id": "fake-set", "record_id": "0", "doi": "10.5281/zenodo.0",
+            "files": [{"name": "data.csv"}]}]}))
+        fake = {"dataset_id": "fake-set", "status": status, "files": [], "errors": []}
+        with mock.patch("ufo_pipeline.cli.retrieve_dataset", return_value=fake) as patched:
+            code = main(["fetch", "--manifest", str(manifest), "--dest", str(root / "raw"),
+                         "--provenance-dir", str(root / "prov"), *extra])
+        self.assertEqual(patched.call_count, 1)
+        return code
+
+    def test_verified_exits_zero(self):
+        self.assertEqual(self.run_fetch("verified"), 0)
+
+    def test_unpinned_exits_nonzero_by_default(self):
+        self.assertEqual(self.run_fetch("unpinned"), 1)
+
+    def test_unpinned_allowed_only_with_flag(self):
+        self.assertEqual(self.run_fetch("unpinned", "--allow-unpinned"), 0)
+
+    def test_failed_always_exits_nonzero(self):
+        self.assertEqual(self.run_fetch("failed"), 1)
+        self.assertEqual(self.run_fetch("failed", "--allow-unpinned"), 1)
+
+
 class CliTests(unittest.TestCase):
     def test_validate_manifest_and_empty_fetch(self):
         repo = Path(__file__).resolve().parent.parent
         manifest = str(repo / "data" / "manifest" / "datasets.json")
         self.assertEqual(main(["validate-manifest", "--manifest", manifest]), 0)
-        self.assertEqual(main(["fetch", "--manifest", manifest]), 0)
+        # fetch must never touch the network in tests: use an empty temporary manifest
+        empty = Path(tempfile.mkdtemp()) / "empty.json"
+        empty.write_text(json.dumps({"schema_version": 1, "datasets": []}))
+        self.assertEqual(main(["fetch", "--manifest", str(empty)]), 0)
 
     def test_bad_manifest_returns_error(self):
         tmp = Path(tempfile.mkdtemp()) / "m.json"
