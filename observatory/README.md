@@ -5,4 +5,4 @@
 
 This directory is a source export only. It is not deployed anywhere, there is no hosting configuration, and publishing it publicly is a separate decision.
 
-External resource: the page loads fonts (Inter, Space Grotesk, JetBrains Mono) from Google Fonts. Visitors' browsers therefore contact Google when the page is opened. If that is not acceptable for a public deployment, self-host the fonts or drop the `<link>` (the page falls back to system fonts).
+Fonts: Inter and JetBrains Mono (SIL OFL 1.1) are self-hosted in `fonts/` as subsetted WOFF files (Latin, Latin-1, Latin Extended-A incl. Hungarian ő/ű); licence texts are alongside. The page makes no external requests. Regenerate the fonts with `python observatory/make_fonts.py` (needs fontTools and the source font files). Headings now use Inter; Space Grotesk was dropped because no licensed copy was available to self-host. The subsetted files are modified versions of the originals, as the OFL permits.
