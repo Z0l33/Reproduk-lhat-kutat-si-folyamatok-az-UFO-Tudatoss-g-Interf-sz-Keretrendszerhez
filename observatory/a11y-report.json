@@ -1,0 +1,192 @@
+{
+  "content": {
+    "counts": {
+      "MANUAL REQUIRED": 4,
+      "NOT VERIFIED": 4,
+      "PASS": 10
+    },
+    "input": {
+      "file": "observatory/index.html",
+      "sha256": "df3dff191593f958d6feb9079681d3e75a61fc538108967f2eb7863eb75b0065"
+    },
+    "items": [
+      {
+        "evidence": {
+          "proved": "Four claim-level marks exist in both languages with constant numbers 01-04 in order, the specified names, and a fixed icon mapping a01-a04.",
+          "test": "check_claim_marks_complete"
+        },
+        "id": "claim-marks-complete",
+        "scope": "Static analysis of the generated observatory/index.html source (markup, CSS tokens, the script's string tables and render templates). Not an accessibility-tree measurement, not a screen-reader run, not a WCAG conformance audit.",
+        "status": "PASS",
+        "title": "Claim-level marks 01-04"
+      },
+      {
+        "evidence": {
+          "proved": "Claim level (A) and data status (B) have separate legend containers; each renderer uses only its own icon set.",
+          "test": "check_legends_separate"
+        },
+        "id": "legends-separate",
+        "scope": "Static analysis of the generated observatory/index.html source (markup, CSS tokens, the script's string tables and render templates). Not an accessibility-tree measurement, not a screen-reader run, not a WCAG conformance audit.",
+        "status": "PASS",
+        "title": "Two separate legends (claim level, data status)"
+      },
+      {
+        "evidence": {
+          "proved": "All seven mark shapes are pairwise different; the status set (square, triangle, dashed hexagon) shares no icon id and no circle primitive with the claim set.",
+          "test": "check_shapes_disjoint_and_distinct"
+        },
+        "id": "shapes-distinct",
+        "scope": "Static analysis of the generated observatory/index.html source (markup, CSS tokens, the script's string tables and render templates). Not an accessibility-tree measurement, not a screen-reader run, not a WCAG conformance audit.",
+        "status": "PASS",
+        "title": "Mark shapes distinct, claim and status sets disjoint"
+      },
+      {
+        "evidence": {
+          "proved": "Every data status is shown with a shape and a visible text label (legend and evidence column headings).",
+          "test": "check_status_has_text_label"
+        },
+        "id": "status-text-label",
+        "scope": "Static analysis of the generated observatory/index.html source (markup, CSS tokens, the script's string tables and render templates). Not an accessibility-tree measurement, not a screen-reader run, not a WCAG conformance audit.",
+        "status": "PASS",
+        "title": "Data status shown with shape and text label"
+      },
+      {
+        "evidence": {
+          "proved": "All static svg and every svg built by ic() are aria-hidden with no own label, title or role, so an icon next to its text label cannot be announced twice (the screen-reader behaviour itself is a manual check).",
+          "test": "check_icons_not_read_twice"
+        },
+        "id": "icons-not-read-twice",
+        "scope": "Static analysis of the generated observatory/index.html source (markup, CSS tokens, the script's string tables and render templates). Not an accessibility-tree measurement, not a screen-reader run, not a WCAG conformance audit.",
+        "status": "PASS",
+        "title": "Decorative icons hidden from assistive technology"
+      },
+      {
+        "evidence": {
+          "proved": "The mark-04 disclaimer (does not prove an external event, the claim's truth or NHI presence) exists in HU and EN and is rendered.",
+          "test": "check_claim_04_disclaimer"
+        },
+        "id": "claim-04-disclaimer",
+        "scope": "Static analysis of the generated observatory/index.html source (markup, CSS tokens, the script's string tables and render templates). Not an accessibility-tree measurement, not a screen-reader run, not a WCAG conformance audit.",
+        "status": "PASS",
+        "title": "Mark 04 does not prove an event, truth or NHI"
+      },
+      {
+        "evidence": {
+          "proved": "The marks are labelled design proposals, and the example is labelled as an illustration, in both languages.",
+          "test": "check_design_proposal_notice"
+        },
+        "id": "design-proposal-notice",
+        "scope": "Static analysis of the generated observatory/index.html source (markup, CSS tokens, the script's string tables and render templates). Not an accessibility-tree measurement, not a screen-reader run, not a WCAG conformance audit.",
+        "status": "PASS",
+        "title": "Marks labelled as design proposals; example labelled"
+      },
+      {
+        "evidence": {
+          "proved": "17 text/background token pairs (flat colours, panels composited over --bg) have contrast >= 4.5:1; lowest 5.86:1. Pixels of the decorative star/gradient backdrop are not measured.",
+          "test": "check_text_contrast"
+        },
+        "id": "text-contrast",
+        "scope": "Static analysis of the generated observatory/index.html source (markup, CSS tokens, the script's string tables and render templates). Not an accessibility-tree measurement, not a screen-reader run, not a WCAG conformance audit.",
+        "status": "PASS",
+        "title": "Text contrast >= 4.5:1 (token pairs)"
+      },
+      {
+        "evidence": {
+          "proved": "The only interactive elements are the two language buttons; CSS declares >= 44x44 px and they expose aria-pressed inside a named group. Icons are not interactive and carry no target-size requirement.",
+          "test": "check_interactive_targets"
+        },
+        "id": "interactive-targets",
+        "scope": "Static analysis of the generated observatory/index.html source (markup, CSS tokens, the script's string tables and render templates). Not an accessibility-tree measurement, not a screen-reader run, not a WCAG conformance audit.",
+        "status": "PASS",
+        "title": "Interactive targets >= 44x44 px, named, stateful"
+      },
+      {
+        "evidence": {
+          "proved": "Colour is only an accent: every status and claim mark also has a distinct shape and a text label or number.",
+          "test": "check_no_colour_only_meaning"
+        },
+        "id": "no-colour-only-meaning",
+        "scope": "Static analysis of the generated observatory/index.html source (markup, CSS tokens, the script's string tables and render templates). Not an accessibility-tree measurement, not a screen-reader run, not a WCAG conformance audit.",
+        "status": "PASS",
+        "title": "No meaning carried by colour alone"
+      },
+      {
+        "done": false,
+        "id": "sr-nvda-voiceover",
+        "needed_check": "Listen through the legends, evidence columns and the example chips in both languages; confirm no mark is announced twice and the order is understandable.",
+        "scope": "Human check on a real device or tool.",
+        "status": "MANUAL REQUIRED",
+        "title": "Screen-reader reading (NVDA on Windows, VoiceOver on macOS/iOS)"
+      },
+      {
+        "done": false,
+        "id": "shape-legibility",
+        "needed_check": "Look at the seven marks at 100% and 200% zoom and in a colour-blindness simulation; confirm the solid square (status) is not confused with the outlined rhombus (claim 03).",
+        "scope": "Human check on a real device or tool.",
+        "status": "MANUAL REQUIRED",
+        "title": "Shape legibility at small size and under colour-vision-deficiency simulation"
+      },
+      {
+        "done": false,
+        "id": "mobile-readability",
+        "needed_check": "Open the page on a phone and with browser zoom 200%; confirm the legends and chips wrap without clipped text.",
+        "scope": "Human check on a real device or tool.",
+        "status": "MANUAL REQUIRED",
+        "title": "Readability on a real phone (about 400 px wide) and at 200% text zoom"
+      },
+      {
+        "done": false,
+        "id": "keyboard-focus",
+        "needed_check": "Tab to the language buttons, toggle with Enter/Space, confirm the focus ring is visible on the dark background.",
+        "scope": "Human check on a real device or tool.",
+        "status": "MANUAL REQUIRED",
+        "title": "Keyboard-only use and visible focus"
+      },
+      {
+        "id": "forced-colors",
+        "reason": "No test or inspection has been done.",
+        "scope": "Not covered by this report.",
+        "status": "NOT VERIFIED",
+        "title": "Forced-colors / Windows high-contrast behaviour"
+      },
+      {
+        "id": "backdrop-contrast",
+        "reason": "Only flat token pairs were computed.",
+        "scope": "Not covered by this report.",
+        "status": "NOT VERIFIED",
+        "title": "Contrast over the decorative star/gradient backdrop pixels"
+      },
+      {
+        "id": "wcag-audit",
+        "reason": "No audit was performed; this report makes no conformance claim.",
+        "scope": "Not covered by this report.",
+        "status": "NOT VERIFIED",
+        "title": "WCAG conformance"
+      },
+      {
+        "id": "scientific-categories",
+        "reason": "They are design proposals and have not been reviewed as a scientific taxonomy.",
+        "scope": "Not covered by this report.",
+        "status": "NOT VERIFIED",
+        "title": "Claim-level categories as validated scientific categories"
+      }
+    ],
+    "overall": {
+      "open_items": 8,
+      "status": "NOT VERIFIED"
+    },
+    "schema": 1,
+    "scope": "Static analysis of the generated observatory/index.html source (markup, CSS tokens, the script's string tables and render templates). Not an accessibility-tree measurement, not a screen-reader run, not a WCAG conformance audit."
+  },
+  "metadata": {
+    "content_sha256": "c93947227e2b62910c9064ad0b4db7f7269fd97fba3ab3716b1163549d20c8ab",
+    "environment": {
+      "platform": "Linux-6.18.44-fc-v726-x86_64-with-glibc2.39",
+      "python": "3.13.18"
+    },
+    "generated_at": "2026-11-23T17:32:37Z",
+    "note": "metadata describes this run; it is not part of the reproducible content",
+    "tool": "observatory/a11y_report.py",
+    "tool_version": "1"
+  }
+}
