@@ -1,0 +1,147 @@
+<title>UFO Research Observatory</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one centred column; ringed header, then status, three evidence columns, charts, risk, counters. Dark single look by request. */
+:root{
+  --bg:#070b1c; --panel:rgba(20,30,62,.62); --line:rgba(120,200,215,.18);
+  --fg:#e6ecf7; --mute:#9aa8c7; --teal:#3fd0d0; --violet:#9b86f2; --gold:#e3c88a;
+  --warn:#e3c88a; --warn-bg:rgba(227,200,138,.10); --bad:#f08a8a; --ok:#6fd6a6;
+  --font-d:'Space Grotesk',system-ui,sans-serif; --font-b:'Inter',system-ui,sans-serif; --font-m:'JetBrains Mono',ui-monospace,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 var(--font-b);
+  background-image:radial-gradient(1px 1px at 12% 18%,#fff8 50%,transparent 51%),radial-gradient(1px 1px at 78% 8%,#fff6 50%,transparent 51%),radial-gradient(1.5px 1.5px at 44% 30%,#bfe 50%,transparent 51%),radial-gradient(1px 1px at 90% 42%,#fff6 50%,transparent 51%),radial-gradient(1px 1px at 22% 62%,#fff5 50%,transparent 51%),radial-gradient(1px 1px at 63% 74%,#fff6 50%,transparent 51%),radial-gradient(ellipse at 50% -10%,#1b2a6a 0,transparent 60%);
+  background-attachment:fixed}
+.wrap{max-width:1040px;margin:0 auto;padding-block:20px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{position:relative;display:flex;gap:24px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding-block:28px 12px;overflow:hidden}
+header>div{min-width:0}
+.rings{position:absolute;right:-90px;top:-120px;width:380px;height:380px;pointer-events:none;opacity:.55}
+h1{font:700 clamp(28px,5vw,46px)/1.08 var(--font-d);margin:0;letter-spacing:-.01em;text-wrap:balance;position:relative}
+h1 span{background:linear-gradient(90deg,var(--teal),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--mute);max-width:60ch;margin:10px 0 0;position:relative}
+.lang{display:flex;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--panel);position:relative}
+.lang button{font:500 13px var(--font-b);color:var(--mute);background:none;border:0;padding:6px 14px;border-radius:999px;cursor:pointer}
+.lang button[aria-pressed=true]{background:linear-gradient(90deg,#2a7f93,#5a4bb5);color:#fff}
+button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+h2{font:600 22px var(--font-d);margin:0 0 14px;text-wrap:balance}
+section{margin-top:40px}
+.glass{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;backdrop-filter:blur(8px)}
+.banner{border:1px solid rgba(227,200,138,.4);background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:12px 16px;margin-top:18px;font-weight:500}
+.status{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.status .glass{min-width:0}
+.k{font:500 11px var(--font-m);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.pill{display:inline-block;font:500 13px var(--font-m);padding:2px 10px;border-radius:999px;border:1px solid currentColor;margin-top:8px}
+.p-warn{color:var(--warn)}.p-bad{color:var(--bad)}.p-ok{color:var(--ok)}
+.note{color:var(--mute);font-size:13px;margin:8px 0 0}
+.three{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.three .glass{min-width:0}.three h3{font:600 16px var(--font-d);margin:0 0 4px}
+.t-fact{border-top:3px solid var(--teal)}.t-heur{border-top:3px solid var(--violet)}.t-unv{border-top:3px solid var(--gold)}
+ul{margin:8px 0 0;padding-left:18px}li{margin:4px 0;font-size:13.5px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}.grid2>*{min-width:0}
+.bars{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.bar{display:grid;grid-template-columns:minmax(90px,150px) 1fr auto;gap:10px;align-items:center;font-size:13px}
+.bar .lab{overflow-wrap:anywhere}
+.track{height:12px;border-radius:6px;background:rgba(255,255,255,.07);overflow:hidden}
+.fill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--teal),var(--violet))}
+.fill.gold{background:linear-gradient(90deg,var(--gold),#b99b5a)}
+.num{font:500 13px var(--font-m);font-variant-numeric:tabular-nums}
+.lvls{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-top:10px}
+.lvl{border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:12px}
+.lvl b{display:block;font:500 12px var(--font-m);color:var(--mute)}
+.lvl.vh{border-color:rgba(240,138,138,.5)}.lvl.mod{border-color:rgba(227,200,138,.5)}
+.tbl{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:13px}td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+td.num{text-align:right;white-space:nowrap}
+code{font:12.5px var(--font-m);color:var(--teal);overflow-wrap:anywhere}
+footer{margin-top:48px;color:var(--mute);font-size:12.5px;border-top:1px solid var(--line);padding-top:16px}
+@media (prefers-reduced-motion:no-preference){.rings circle{animation:pulse 7s ease-in-out infinite}.rings circle:nth-child(2){animation-delay:-2s}.rings circle:nth-child(3){animation-delay:-4s}}
+@keyframes pulse{50%{opacity:.45}}
+</style>
+<div class="wrap">
+<header>
+  <svg class="rings" viewBox="0 0 380 380" aria-hidden="true"><g fill="none" stroke="#3fd0d0" stroke-width="1"><circle cx="190" cy="190" r="60"/><circle cx="190" cy="190" r="110" stroke="#9b86f2"/><circle cx="190" cy="190" r="160" stroke="#e3c88a" stroke-opacity=".6"/><circle cx="190" cy="190" r="185" stroke-dasharray="2 8"/></g></svg>
+  <div><h1>UFO Research <span>Observatory</span></h1><p class="sub" id="sub"></p></div>
+  <div class="lang" role="group" aria-label="Language"><button id="b-hu" aria-pressed="true">Magyar</button><button id="b-en" aria-pressed="false">English</button></div>
+</header>
+<div class="banner" id="warn"></div>
+<section><h2 id="h-status"></h2><div class="status" id="status"></div><p class="note" id="status-note"></p></section>
+<section><h2 id="h-ev"></h2><div class="three" id="ev"></div><p class="note" id="ev-note"></p></section>
+<section><h2 id="h-charts"></h2><div class="grid2" id="charts"></div></section>
+<section><h2 id="h-risk"></h2><div class="glass" id="risk"></div></section>
+<section><h2 id="h-flags"></h2><div class="glass tbl" id="flags"></div></section>
+<footer id="foot"></footer>
+</div>
+<script>
+const D={"cohorts": {"minors_any_strict_age_under_18": 170, "strict_person_bound_age": 1555, "unclassified_age_phrase_not_verified": 57}, "ev": {"facts": ["input", "identifier", "geography (counts and formats)", "dates.Datum_precision", "dates.Datum_unparsable_breakdown", "classification.value_counts", "geography_deep (counts, lengths, character kinds, group sizes)", "summary.rule_counts for structural rules (missing_*, datum_*, plz_*, hendry_*, land_*)"], "heuristic_hits": ["reidentification_risk (risk estimate only, file-internal)", "privacy_screen.*.rows_matching", "privacy_screen.age_analysis", "summary.rule_counts: sachverhalt_*, sichtungsort_*, duplicate_sachverhalt_text"], "unverified_assumptions": ["that uniqueness inside this file reflects uniqueness in the real population (reidentification_risk.assumptions)", "that the country-specific PLZ formats used for the consistency check (PLZ_DIGITS_BY_LAND) are the right expectation for every row of that country", "that PLZ_unvollstaendig holds truncated postal codes (see geography_deep.PLZ_unvollstaendig)", "that a heuristic hit corresponds to a real personal identifier (not checked: no text is read)", "that PLZ_unvollstaendig and the Hynek/Hendry codes mean what their names suggest (GEP documentation not consulted)", "that the dataset is free of submitter personal data, as its description states", "that Datum/Gemeldet formats are consistently day-month-year (only parseability was tested)"]}, "flagged": 2015, "hendry": {"GOOD UFO": 21, "Hoax": 9, "IFO": 4668, "IFo": 1, "NEAR IFO": 237, "PROBLEMATIC UFO": 110, "S": 24, "Ungenügende Daten": 659}, "levels": [["L1_plz", "very_high", 1514], ["L2_plz_age", "very_high", 1514], ["L3_plz_age_date", "very_high", 1318], ["L4_plz_age_date_time", "very_high", 1296], ["L5_place_age_date", "very_high", 1345], ["L6_generalised_plz2_ageband_month", "very_high", 1318], ["L7_coarse_plz1_ageband_decade", "moderate", 1318]], "prec": {"full": 5881, "missing": 263, "other_unparsable": 0, "year_month": 343, "year_only": 284}, "rows": 6771, "rules": {"duplicate_sachverhalt_text": 30, "hendry_S_unclear_meaning": 24, "missing_datum": 263, "missing_land": 6, "plz_format_unexpected_for_land": 67, "plz_nonnumeric_or_over_5_digits": 93, "plz_unvollstaendig_4_or_more_digits": 110, "sachverhalt_age_phrase_unclassified": 57, "sachverhalt_direct_identifier_pattern": 4, "sachverhalt_person_age_strict": 1555}, "sha": "4dc9787e8a4b77d6ab52e952e93439418662041e3e0830c998d3f1aadbe125d3"};
+const T={
+hu:{
+ sub:'Ellenőrizhető kutatási módszertan: a megfigyelés, a következtetés, a bizonytalanság és a cáfolható hipotézis szétválasztva. Statikus összefoglaló, kizárólag a repóban commitolt QA-jelentés összesítéseiből.',
+ warn:'A Notion-szinkron még nincs igazolva. Nincs élő kapcsolat és nincs automatikus eredmény; az oldal nem mutat „online” állapotot.',
+ hstatus:'Valós státusz (2026-11-23, 17:10-kor)',
+ hev:'Három szint, külön kezelve',hch:'Mért összesítések (QA-jelentés)',hrisk:'Újraazonosítási kockázatbecslés',hflags:'Szabályszámlálók (jelölés, nem hiba)',
+ evnote:'A listák a jelentés angol szövegei (evidence_levels), változtatás nélkül.',
+ facts:'Tények',heur:'Heurisztikus találatok',unv:'Nem ellenőrzött feltevések',
+ s:[['PR #7','Nyitott, nincs beolvasztva','warn','Invariáns-tesztek és reprodukálhatósági napló. A CI zöld, emberi átnézésre vár.'],
+    ['Licenc','Nem azonosított','bad','A Zenodo gépi olvasata forrásinformáció, nem emberi megerősítés. Végleges licencállítás nincs.'],
+    ['Notion-kapcsolat','Nem igazolt','bad','A NOTION_TOKEN nem ellenőrzött, a dry run nem történt meg, az éles API-t nem értük el.'],
+    ['SHA-256 pin','Felfüggesztve','warn','A manifestben nincs pin. A fájl SHA-256 értéke integritási adat, nem minőségi bizonyíték.']],
+ snote:'A státusz a közzététel pillanatát tükrözi, nem frissül automatikusan.',
+ c_prec:'Dátum-pontosság (rekord)',c_prec_n:'A 627 csökkentett pontosságú dátum nem hibás. Napi késési idő számításában nem szerepelhet.',
+ prec:{full:'Teljes dátum',year_month:'Év és hónap',year_only:'Csak év',missing:'Hiányzó'},
+ c_hen:'Klasszifikáció (Hendry), rekord',c_hen_n:'Az „S” jelentése nem ellenőrzött.',
+ riskintro:'Ez kockázatbecslés, nem bizonyíték arra, hogy valaki azonosítható. A fájlon belüli egyediséget méri; az 5 alatti csoportok összevontan jelennek meg, kiskorúaknál a küszöb 10.',
+ coh:{strict_person_bound_age:'Személyhez kötött életkor (szigorú)',minors_any_strict_age_under_18:'Ebből kiskorúra utaló (korlátozott kezelés)',unclassified_age_phrase_not_verified:'Nem besorolt, ellenőrizetlen'},
+ lv:'Szint (a szigorú életkori csoportban)',elig:'jogosult rekord',
+ vh:'nagyon magas',mod:'mérsékelt',hi:'magas',lo:'alacsony',
+ rules:{missing_datum:'Hiányzó Datum',missing_land:'Hiányzó Land',plz_format_unexpected_for_land:'PLZ-formátum nem várt az országhoz',plz_nonnumeric_or_over_5_digits:'PLZ nem numerikus vagy 5 jegynél hosszabb',plz_unvollstaendig_4_or_more_digits:'PLZ_unvollstaendig 4+ jegy',hendry_S_unclear_meaning:'Hendry „S” (jelentése tisztázatlan)',duplicate_sachverhalt_text:'Azonos szabad szövegű rekordok',sachverhalt_direct_identifier_pattern:'Közvetlen azonosító-minta (heurisztika)',sachverhalt_age_phrase_unclassified:'Életkor-kifejezés, besorolatlan',sachverhalt_person_age_strict:'Személyhez kötött életkor (szigorú)'},
+ foot:'Forrás: reports/gep-ufo-uap-2026-10.qa.json (main, futás 45210062668, jelentés SHA-256 8adc1831…c264). A CSV nincs a repóban és a Notionben; a SHA-256 pin felfüggesztve. Szabad szöveg, irányítószám és rekordazonosító nem szerepel. Nincs külső előzetes regisztráció, független replikáció vagy valós adaton végzett hipotézisvizsgálat.'
+},
+en:{
+ sub:'A verifiable research method: observation, inference, uncertainty and falsifiable hypothesis kept apart. Static summary built only from aggregates of the QA report committed to the repository.',
+ warn:'Notion sync is not yet verified. There is no live connection and no automatic result; this page shows no “online” state.',
+ hstatus:'Actual status (as of 2026-11-23, 17:10)',
+ hev:'Three levels, kept apart',hch:'Measured aggregates (QA report)',hrisk:'Re-identification risk estimate',hflags:'Rule counters (flags, not errors)',
+ evnote:'The lists are the report’s own text (evidence_levels), unchanged.',
+ facts:'Facts',heur:'Heuristic hits',unv:'Unverified assumptions',
+ s:[['PR #7','Open, not merged','warn','Invariant tests and a reproducibility log. CI green, awaiting human review.'],
+    ['Licence','Not identified','bad','The Zenodo page read by machine is source information, not human confirmation. No final licence claim.'],
+    ['Notion connection','Not verified','bad','NOTION_TOKEN is unchecked, the dry run has not happened, the live API was never reached.'],
+    ['SHA-256 pin','Suspended','warn','The manifest has no pin. The file hash is integrity data, not evidence of quality.']],
+ snote:'The status reflects the moment of publishing and does not update itself.',
+ c_prec:'Date precision (rows)',c_prec_n:'The 627 reduced-precision dates are not errors. They never enter a daily reporting-delay calculation.',
+ prec:{full:'Full date',year_month:'Year and month',year_only:'Year only',missing:'Missing'},
+ c_hen:'Classification (Hendry), rows',c_hen_n:'The meaning of “S” is unverified.',
+ riskintro:'This is a risk estimate, not proof that anyone can be identified. It measures uniqueness inside this file; groups under 5 are merged, for minors the threshold is 10.',
+ coh:{strict_person_bound_age:'Person-bound age (strict)',minors_any_strict_age_under_18:'Of which pointing to minors (restricted handling)',unclassified_age_phrase_not_verified:'Unclassified, unverified'},
+ lv:'Level (strict-age cohort)',elig:'eligible rows',
+ vh:'very high',mod:'moderate',hi:'high',lo:'low',
+ rules:{missing_datum:'Missing Datum',missing_land:'Missing Land',plz_format_unexpected_for_land:'PLZ format unexpected for country',plz_nonnumeric_or_over_5_digits:'PLZ non-numeric or over 5 digits',plz_unvollstaendig_4_or_more_digits:'PLZ_unvollstaendig 4+ digits',hendry_S_unclear_meaning:'Hendry “S” (meaning unclear)',duplicate_sachverhalt_text:'Rows with identical free text',sachverhalt_direct_identifier_pattern:'Direct identifier pattern (heuristic)',sachverhalt_age_phrase_unclassified:'Age phrase, unclassified',sachverhalt_person_age_strict:'Person-bound age (strict)'},
+ foot:'Source: reports/gep-ufo-uap-2026-10.qa.json (main, run 45210062668, report SHA-256 8adc1831…c264). The CSV is not in the repository or Notion; the SHA-256 pin is suspended. No free text, postal code or record ID is shown. There is no external preregistration, independent replication or hypothesis test on real data.'
+}};
+const $=id=>document.getElementById(id), fmt=n=>n.toLocaleString('en-US').replace(/,/g,' ');
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+function bars(items,max,cls){return '<div class="bars">'+items.map(([l,n])=>`<div class="bar"><span class="lab">${esc(l)}</span><div class="track"><div class="fill ${cls||''}" style="width:${Math.max(1.5,100*n/max)}%"></div></div><span class="num">${fmt(n)}</span></div>`).join('')+'</div>'}
+function render(lang){
+  const t=T[lang]; document.documentElement.lang=lang;
+  $('b-hu').setAttribute('aria-pressed',lang==='hu'); $('b-en').setAttribute('aria-pressed',lang==='en');
+  $('sub').textContent=t.sub; $('warn').textContent=t.warn;
+  $('h-status').textContent=t.hstatus; $('h-ev').textContent=t.hev; $('h-charts').textContent=t.hch; $('h-risk').textContent=t.hrisk; $('h-flags').textContent=t.hflags;
+  $('status').innerHTML=t.s.map(([k,v,c,n])=>`<div class="glass"><div class="k">${k}</div><span class="pill p-${c}">${v}</span><p class="note">${n}</p></div>`).join('');
+  $('status-note').textContent=t.snote;
+  const li=a=>'<ul>'+a.map(x=>`<li>${esc(x)}</li>`).join('')+'</ul>';
+  $('ev').innerHTML=`<div class="glass t-fact"><h3>${t.facts}</h3>${li(D.ev.facts)}</div><div class="glass t-heur"><h3>${t.heur}</h3>${li(D.ev.heuristic_hits)}</div><div class="glass t-unv"><h3>${t.unv}</h3>${li(D.ev.unverified_assumptions)}</div>`;
+  $('ev-note').textContent=t.evnote;
+  const pk=['full','year_month','year_only','missing'];
+  const hen=Object.entries(D.hendry).sort((a,b)=>b[1]-a[1]);
+  $('charts').innerHTML=`<div class="glass"><div class="k">${t.c_prec}</div>${bars(pk.map(k=>[t.prec[k],D.prec[k]]),D.rows)}<p class="note">${t.c_prec_n}</p><p class="note num">Σ = ${fmt(D.rows)}</p></div><div class="glass"><div class="k">${t.c_hen}</div>${bars(hen,Math.max(...hen.map(x=>x[1])),'gold')}<p class="note">${t.c_hen_n}</p></div>`;
+  const band={very_high:['vh',t.vh],high:['',t.hi],moderate:['mod',t.mod],low:['',t.lo]};
+  const cs=Object.entries(D.cohorts).map(([k,v])=>[t.coh[k]||k,v]);
+  $('risk').innerHTML=`<p class="note" style="margin-top:0">${t.riskintro}</p>${bars(cs,Math.max(...cs.map(x=>x[1])))}<div class="k" style="margin-top:16px">${t.lv}</div><div class="lvls">${D.levels.map(([k,b,n])=>{const [c,l]=band[b]||['',b];return `<div class="lvl ${c}"><b>${k.split('_')[0]}</b>${l}<br><span class="num">${fmt(n)} ${t.elig}</span></div>`}).join('')}</div>`;
+  $('flags').innerHTML='<table><tbody>'+Object.entries(D.rules).map(([k,n])=>`<tr><td>${t.rules[k]||k}<br><code>${k}</code></td><td class="num">${fmt(n)}</td></tr>`).join('')+'</tbody></table>';
+  $('foot').textContent=t.foot;
+  try{localStorage.setItem('lang',lang)}catch(e){}
+}
+$('b-hu').onclick=()=>render('hu'); $('b-en').onclick=()=>render('en');
+let L='hu'; try{L=localStorage.getItem('lang')||'hu'}catch(e){} render(L==='en'?'en':'hu');
+</script>
