@@ -35,12 +35,33 @@ def _text(prop: Any) -> str:
     return "".join(str(p.get("plain_text", "")) for p in parts if isinstance(p, dict))
 
 
+UNIDENTIFIED = "unidentified-row-"
+
+
+def row_keys(rows: List[Dict[str, Any]]) -> List[str]:
+    """Report key per row: the Notion page id, or 'unidentified-row-<n>' (n = 1-based position in the reply) when the
+    page has no usable string id. The generated key exists only to tell rows apart inside a report; it is never a
+    Notion page id and is never written to."""
+    keys = []
+    for n, row in enumerate(rows, 1):
+        pid = row.get("page_id")
+        keys.append(pid if isinstance(pid, str) and pid and not pid.startswith(UNIDENTIFIED) else f"{UNIDENTIFIED}{n}")
+    return keys
+
+
+def is_page_id(key: str) -> bool:
+    return not key.startswith(UNIDENTIFIED)
+
+
 def parse_row(page: Dict[str, Any]) -> Dict[str, Any]:
     """Flatten a Notion page object into plain values. Missing or oddly typed fields become empty."""
+    malformed: List[str] = []
     if not isinstance(page, dict):
         page = {}
+        malformed.append("page")
     raw_props = page.get("properties") or {}
-    malformed: List[str] = [] if isinstance(raw_props, dict) else ["properties"]
+    if not isinstance(raw_props, dict):
+        malformed.append("properties")
     props: Dict[str, Any] = raw_props if isinstance(raw_props, dict) else {}
 
     def select(name: str) -> Optional[str]:
@@ -86,15 +107,21 @@ def rows_to_entries(rows: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], D
     """
     problems: Dict[str, List[str]] = {}
     entries: Dict[str, Dict[str, Any]] = {}
-    for row in rows:
+    keys = row_keys(rows)
+    for row, key in zip(rows, keys):
         bad = row.get("malformed") or []
+        if not is_page_id(key):
+            why = "page is not an object" if "page" in bad else "page has no usable page id"
+            extra = [b_ for b_ in bad if b_ != "page"]
+            problems[key] = [why + (f"; unexpected type in: {', '.join(extra)}" if extra else "") + "; row rejected"]
+            continue
         if bad and (row.get("status") == "submitted" or P_STATUS in bad or "properties" in bad):
-            problems[str(row.get("page_id"))] = [f"unexpected type in Notion propert{'y' if len(bad) == 1 else 'ies'}: "
-                                                 + ", ".join(bad) + "; row rejected"]
+            problems[key] = [f"unexpected type in Notion propert{'y' if len(bad) == 1 else 'ies'}: "
+                             + ", ".join(bad) + "; row rejected"]
             continue
         if row.get("status") != "submitted":
             continue
-        pid = str(row.get("page_id"))
+        pid = key
         issues: List[str] = []
         if row.get("personal_data"):
             issues.append("row is flagged as containing personal data; rejected")
@@ -119,9 +146,9 @@ def rows_to_entries(rows: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], D
     for entry in entries.values():
         merged = validate_entry(entry)
         if merged:
-            for row in rows:
-                if row.get("dataset_id") == entry["dataset_id"] and row.get("status") == "submitted":
-                    problems.setdefault(str(row.get("page_id")), []).extend(merged)
+            for row, key in zip(rows, keys):
+                if row.get("dataset_id") == entry["dataset_id"] and row.get("status") == "submitted" and is_page_id(key):
+                    problems.setdefault(key, []).extend(merged)
         else:
             valid.append(entry)
     return valid, problems
@@ -217,10 +244,10 @@ def sync(client: NotionClient, database_id: str, dest_dir: Any, provenance_dir: 
     parsed = [parse_row(p) for p in pages]
     entries, problems = rows_to_entries(parsed)
     report: Dict[str, Any] = {"rows": len(parsed), "rejected": problems, "datasets": {}}
-    real_ids = {p["page_id"] for p in parsed if isinstance(p.get("page_id"), str) and p["page_id"]}
-    # a rejection is written back only to a row that really has a page id (never to "None" or a made-up id)
+    keys = row_keys(parsed)
+    # a result is written back only to a row with a real page id; 'unidentified-row-<n>' keys are report-only
     updates: List[Tuple[str, Dict[str, Any]]] = [
-        (pid, rejection_properties(issues)) for pid, issues in problems.items() if pid in real_ids]
+        (pid, rejection_properties(issues)) for pid, issues in problems.items() if is_page_id(pid)]
     prov_dir = Path(provenance_dir)
     for entry in entries:
         path = prov_dir / f"{entry['dataset_id']}.json"
@@ -228,11 +255,10 @@ def sync(client: NotionClient, database_id: str, dest_dir: Any, provenance_dir: 
         prov = retriever(entry, dest_dir, existing=existing)
         write_json(path, prov)
         report["datasets"][entry["dataset_id"]] = prov["status"]
-        for row in parsed:
+        for row, key in zip(parsed, keys):
             if row["dataset_id"] == entry["dataset_id"] and row["status"] == "submitted" \
-                    and str(row["page_id"]) not in problems:
-                updates.append((str(row["page_id"]),
-                                properties_from_provenance(prov, row["file_name"], run_url)))
+                    and key not in problems and is_page_id(key):
+                updates.append((key, properties_from_provenance(prov, row["file_name"], run_url)))
     report["updates"] = len(updates)
     report["applied"] = apply
     if apply:

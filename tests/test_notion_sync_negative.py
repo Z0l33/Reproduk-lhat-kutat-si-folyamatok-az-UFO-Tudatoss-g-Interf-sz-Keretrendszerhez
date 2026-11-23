@@ -245,8 +245,9 @@ def test_wrongly_typed_property_should_be_rejected_not_crash(name):
 def test_non_dict_page_should_be_rejected_not_crash():
     for bad in (None, "page", 5, [], [{"id": "p"}]):
         row = ns.parse_row(bad)
-        assert row["page_id"] is None and row["status"] is None
-        assert ns.rows_to_entries([row]) == ([], {})        # not submitted: nothing to process
+        assert row["page_id"] is None and row["status"] is None and row["malformed"] == ["page"]
+        entries, problems = ns.rows_to_entries([row])
+        assert entries == [] and problems == {"unidentified-row-1": ["page is not an object; row rejected"]}
 
 
 def test_properties_of_the_wrong_container_type_are_rejected():
@@ -300,3 +301,70 @@ def test_workflow_is_manual_dry_run_by_default_and_never_prints_the_token():
     assert "default: false" in text and "secrets.NOTION_TOKEN" in text
     assert text.count("secrets.NOTION_TOKEN") == 1 and "echo" not in text
     assert "contents: read" in text
+
+
+# ---- several unidentified pages arriving together: each is rejected separately and nothing is written to them ----
+def id_less(**kw):
+    p = page(**kw)
+    p.pop("id")
+    return p
+
+
+def test_each_unidentified_page_gets_its_own_reason_keyed_by_position():
+    pages = [None, page("good", ds="ok-set", name="a.csv"), "text", id_less(ds="no-id-set"), {"properties": {ns.P_STATUS: "submitted"}},
+             page("p6", ds="x", personal=True)]
+    entries, problems = ns.rows_to_entries([ns.parse_row(p) for p in pages])
+    assert sorted(k for k in problems if k.startswith("unidentified-row-")) == [
+        "unidentified-row-1", "unidentified-row-3", "unidentified-row-4", "unidentified-row-5"]   # 1-based positions
+    assert "page is not an object" in problems["unidentified-row-1"][0]
+    assert "page is not an object" in problems["unidentified-row-3"][0]
+    assert problems["unidentified-row-4"] == ["page has no usable page id; row rejected"]
+    assert "unexpected type in: Pipeline status" in problems["unidentified-row-5"][0]
+    assert "p6" in problems and "good" not in problems and [e["dataset_id"] for e in entries] == ["ok-set"]
+    assert len({tuple(v) for k, v in problems.items() if k.startswith("unidentified")}) == 3   # distinct reasons, none merged
+
+
+@pytest.mark.parametrize("apply", [False, True])
+def test_unidentified_pages_never_get_a_notion_write_or_a_download(apply):
+    pages = [None, id_less(), id_less(ds="second"), "text", {"properties": None}]
+    rec = Recorder(pages)
+    report = ns.sync(rec, DB, "raw", "prov", rec.retriever, apply=apply)
+    assert rec.updated == [] and rec.downloads == [] and not Path("prov").exists()
+    assert report["rows"] == 5 and report["applied"] is apply
+    assert sorted(report["rejected"]) == [f"unidentified-row-{n}" for n in (1, 2, 3, 4, 5)]   # every id-less page is rejected
+    json.dumps(report)                                                                      # report stays serialisable
+
+
+def test_a_real_page_id_that_imitates_a_generated_key_is_treated_as_unidentified():
+    pages = [page("unidentified-row-1"), page("unidentified-row-1", ds="y")]
+    rec = Recorder(pages)
+    report = ns.sync(rec, DB, "raw", "prov", rec.retriever, apply=True)
+    assert rec.updated == [] and rec.downloads == []
+    assert sorted(report["rejected"]) == ["unidentified-row-1", "unidentified-row-2"]
+
+
+def test_report_and_output_contain_no_property_values_or_token(monkeypatch, capsys):
+    secret = "SECRET-VALUE-doi-10.5281-zenodo.424242"
+    bad = id_less(ds="no-id", doi=secret, name=secret + ".csv", claim="b" * 64)
+    bad["properties"][ns.P_PERSONAL] = secret                      # wrong type, value must not be echoed
+    urlopen = mock.Mock(return_value=ok({"results": [bad, None, "x"], "has_more": False}))
+    code, out, err = run_cli(monkeypatch, urlopen, capsys, "--apply")
+    assert code == 1 and secret not in out + err and "b" * 64 not in out + err and FAKE_TOKEN not in out + err
+    report = json.loads(out)
+    assert sorted(report["rejected"]) == ["unidentified-row-1", "unidentified-row-2", "unidentified-row-3"]
+    assert urlopen.call_count == 1                                 # the query only; no PATCH was sent
+    assert nothing_persisted()
+
+
+def test_submitted_row_without_an_id_is_rejected_not_downloaded():
+    rec = Recorder([id_less(claim="a" * 64)])
+    report = ns.sync(rec, DB, "raw", "prov", rec.retriever, apply=True)
+    assert rec.downloads == [] and rec.updated == [] and report["datasets"] == {}
+    assert list(report["rejected"]) == ["unidentified-row-1"]
+
+
+def test_identified_rows_keep_their_page_id_keys_and_processing():
+    pages = [page("p1", ds="one", name="a.csv"), page("p2", ds="two", personal=True)]
+    entries, problems = ns.rows_to_entries([ns.parse_row(p) for p in pages])
+    assert [e["dataset_id"] for e in entries] == ["one"] and list(problems) == ["p2"]
+    assert ns.row_keys([ns.parse_row(p) for p in pages]) == ["p1", "p2"]
