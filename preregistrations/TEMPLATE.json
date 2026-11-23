@@ -1,0 +1,21 @@
+{
+  "prereg_id": "REPLACE_WITH_YOUR_ID",
+  "registered_at": "REPLACE_WITH_TIMEZONE_AWARE_ISO8601_E.G._2026-01-31T12:00:00+00:00",
+  "registry_id": "REPLACE_WITH_EXTERNAL_REGISTRY_ID_OR_DOI",
+  "hypothesis": "REPLACE: one falsifiable, directional hypothesis",
+  "dataset_id": "REPLACE_WITH_dataset_id_FROM_MANIFEST",
+  "analysis": {
+    "group_column": "REPLACE",
+    "group_a": "REPLACE",
+    "group_b": "REPLACE",
+    "outcome_column": "REPLACE",
+    "expected_direction": "a>b",
+    "alpha": 0.05,
+    "sesoi_g": 0.2,
+    "n_permutations": 10000,
+    "n_bootstrap": 5000,
+    "seed": 20260101,
+    "require_replication": true
+  },
+  "replicates_prereg_sha256": null
+}

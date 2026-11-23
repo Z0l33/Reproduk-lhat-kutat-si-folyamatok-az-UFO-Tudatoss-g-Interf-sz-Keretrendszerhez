@@ -221,3 +221,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ufo-pipeline: downloaded raw data is re-created by `fetch` and verified against provenance
+data/raw/
+data/synthetic/

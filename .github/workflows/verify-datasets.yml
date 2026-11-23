@@ -1,0 +1,23 @@
+name: Verify datasets (manual, needs network)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e .
+      - name: Fetch and verify every dataset in the manifest
+        run: python -m ufo_pipeline fetch --manifest data/manifest/datasets.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: provenance
+          path: provenance/*.json
