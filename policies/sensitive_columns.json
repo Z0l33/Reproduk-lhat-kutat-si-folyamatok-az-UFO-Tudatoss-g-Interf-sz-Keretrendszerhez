@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "description": "Columns that must never reach the analysis layer. Location is fixed (policies/sensitive_columns.json under the base dir); an analysis config cannot override it. A real (non-synthetic) dataset without an entry in 'datasets' is refused.",
+  "global_denied_column_patterns": [
+    "(^|[_ -])(name|vorname|nachname|email|e-mail|phone|telefon|adresse|address|plz|zip|postal|postleit)([_ -]|$)",
+    "(^|[_ -])(sachverhalt|narrative|freitext|free[_ -]?text|beschreibung|sichtungsort)([_ -]|$)"
+  ],
+  "datasets": {
+    "gep-ufo-uap-2026-10": {
+      "denied_columns": ["Sachverhalt", "Sichtungsort", "PLZ", "PLZ_unvollstaendig"],
+      "reason": "Free text and place fields; with age, date and time they form a re-identification risk (see reports/gep-ufo-uap-2026-10.qa.json, reidentification_risk). Minors are mentioned in the free text."
+    }
+  }
+}

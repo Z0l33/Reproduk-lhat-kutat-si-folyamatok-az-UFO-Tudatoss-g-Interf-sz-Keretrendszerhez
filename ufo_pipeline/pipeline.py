@@ -5,12 +5,13 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 from . import __version__
+from .access import assert_only_allowed, load_csv_allowlisted, resolve_access
 from .evidence import assess, evaluate_replication
 from .prereg import check_prereg, load_prereg, prereg_hash
 from .provenance import (dataset_is_verified, load_json, require_local_file_integrity,
                          utc_now_iso, validate_provenance, write_json)
 from .stats import analyze_two_groups
-from .validation import detect_leakage, load_csv, parse_float, validate_schema
+from .validation import detect_leakage, parse_float, validate_schema
 
 PathLike = Union[str, Path]
 REPORT_SCHEMA_VERSION = 1
@@ -47,13 +48,17 @@ def run_analysis(config: Dict[str, Any], *, base_dir: PathLike = ".") -> Dict[st
 
     prov = load_json(base / config["dataset_provenance"])
     data_path = base / config["data_file"]
+    # Column access is decided BEFORE the data file is touched; denied columns never get loaded.
+    access = resolve_access(config, prov, base)
     provenance_problems = validate_provenance(prov)
     integrity = require_local_file_integrity(prov, data_path)  # raises IntegrityError on mismatch
     synthetic = prov.get("synthetic") is True
     # Re-hash EVERY file of the dataset locally; a 'verified' status string alone is never trusted.
     verified = dataset_is_verified(prov, data_path.parent)
 
-    columns, rows = load_csv(data_path)
+    columns, rows, load_info = load_csv_allowlisted(data_path, access["allowed_columns"],
+                                                    access["_is_denied"])
+    assert_only_allowed(columns, rows, access["allowed_columns"])
     validation = validate_schema(columns, rows, config.get("validation", {}))
     leak_cfg = config.get("leakage", {})
     leakage = detect_leakage(
@@ -106,6 +111,8 @@ def run_analysis(config: Dict[str, Any], *, base_dir: PathLike = ".") -> Dict[st
                     "provenance_problems": provenance_problems,
                     "file_sha256": {integrity["name"]: integrity["actual"]},
                     "first_retrieved_at": prov.get("first_retrieved_at")},
+        "data_access": {"mode": access["mode"], "allowed_columns": access["allowed_columns"],
+                        "policy_sha256": access["policy_sha256"], **load_info},
         "validation": validation, "leakage": leakage, "preregistration": prereg_info,
         "analysis_parameters": params, "analysis": analysis,
         "assessment": assessment.to_dict(), "assessment_inputs": inputs,

@@ -3,11 +3,24 @@
   "dataset_provenance": "provenance/REPLACE_dataset_id.json",
   "data_file": "data/raw/REPLACE_dataset_id/REPLACE_file.csv",
   "preregistration": "preregistrations/REPLACE.json",
+  "data_access": {
+    "allowed_columns": [
+      "subject_id",
+      "group",
+      "outcome"
+    ]
+  },
   "validation": {
     "columns": {
-      "subject_id": {"type": "str"},
-      "group": {"type": "str"},
-      "outcome": {"type": "float"}
+      "subject_id": {
+        "type": "str"
+      },
+      "group": {
+        "type": "str"
+      },
+      "outcome": {
+        "type": "float"
+      }
     },
     "id_column": "subject_id",
     "unique_id": false,

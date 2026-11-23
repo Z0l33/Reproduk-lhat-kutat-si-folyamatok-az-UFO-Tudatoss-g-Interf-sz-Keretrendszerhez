@@ -57,3 +57,16 @@ Valódi adatkészlet munkafolyamata: bejegyzés a jegyzékbe → `fetch` (állap
 - A statisztika két csoport folytonos kimenetének összehasonlítását fedi le. Más elrendezéshez új, előre regisztrált elemzőkód kell.
 - A szivárgásészlelés a felsorolt mintákat találja meg; a találat hiánya nem bizonyítja a szivárgás hiányát.
 - A statisztikai ítélet módszertani kapu. Az, hogy átmegy rajta, semmit nem mond arról, *miért* létezik a hatás.
+
+## Oszlop-hozzáférés (engedélylista a betöltés és az elemzés között)
+
+Valódi adatkészlethez az elemzési konfigurációban kötelező az explicit `data_access.allowed_columns` lista,
+és a `policies/sensitive_columns.json` fájlban szerepelnie kell az adatkészlet bejegyzésének. A tiltott
+oszlopok (adatkészletenként megadott lista és általános névminták, például szabad szöveg, helyadat,
+irányítószám) nem engedélyezhetők és a konfigurációban sehol nem hivatkozhatók. Minden ellenőrzés az
+adatfájl megnyitása **előtt** fut, és a betöltő csak az engedélyezett oszlopokat tartja meg, így a tiltott
+oszlop nem jut el a validációig, a szivárgás-ellenőrzésig vagy a statisztikáig. Szabálysértésnél a futás
+`COLUMN ACCESS DENIED` üzenettel (2-es kilépési kód) leáll, és jelentés nem készül. A szabályfájl helye
+rögzített, a konfiguráció nem írhatja felül. A szabályfájlban nem szereplő valódi adatkészletet a rendszer
+elutasítja. Nem fedi le: az *engedélyezett* oszlopok kombinációjából adódó újraazonosítást (lásd `reports/`),
+ezért az engedélylistát szűken kell megadni.
