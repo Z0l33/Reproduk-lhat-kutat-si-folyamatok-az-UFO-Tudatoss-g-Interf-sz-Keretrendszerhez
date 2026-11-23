@@ -114,6 +114,20 @@ def classify_date_value(value: str) -> str:
     return "other_shape"
 
 
+def datum_precision(raw: List[str], parsed: List[Any]) -> List[str]:
+    """Per row: full | year_month | year_only | missing | other_unparsable."""
+    out = []
+    for r, p in zip(raw, parsed):
+        if not r:
+            out.append("missing")
+        elif p is not None:
+            out.append("full")
+        else:
+            kind = classify_date_value(r)
+            out.append({"year_only": "year_only", "year_month_only": "year_month"}.get(kind, "other_unparsable"))
+    return out
+
+
 def _date_error_report(raw: List[str], parsed: List[Any], gemeldet_raw: List[str]) -> Dict[str, Any]:
     bad = [i for i, (r, p) in enumerate(zip(raw, parsed)) if r and p is None]
     types = Counter(classify_date_value(raw[i]) for i in bad)
@@ -200,7 +214,18 @@ def analyse(path: Union[str, Path]) -> Dict[str, Any]:
     gemeldet = [_date(v) if v else None for v in c.get("Gemeldet", [""] * n)]
     unparsable = lambda raw, parsed: sum(1 for r, p in zip(raw, parsed) if r and p is None)  # noqa: E731
     both = [(g, d) for g, d in zip(gemeldet, datum) if g and d]
+    precision = datum_precision(c.get("Datum", [""] * n), datum)
+    prec_counts = Counter(precision)
     report["dates"] = {
+        "Datum_precision": {k: prec_counts.get(k, 0) for k in
+                            ("full", "year_month", "year_only", "other_unparsable", "missing")},
+        "Datum_precision_sums_to_rows": sum(prec_counts.values()) == n,
+        "delay_basis": "reporting-delay and order checks use only rows with full-precision Datum and a "
+                       "parsed Gemeldet; year- or month-precision events never get a daily delay",
+        "gemeldet_present_by_datum_precision": {k: sum(1 for pr, g in zip(precision, c.get("Gemeldet", [""] * n))
+                                                       if pr == k and g)
+                                                for k in ("full", "year_month", "year_only",
+                                                          "other_unparsable", "missing")},
         "Datum": {"missing": sum(1 for v in c.get("Datum", []) if not v),
                   "unparsable": unparsable(c.get("Datum", []), datum),
                   "before_1972": sum(1 for d in datum if d and d < RANGE_START),
@@ -215,7 +240,6 @@ def analyse(path: Union[str, Path]) -> Dict[str, Any]:
         "both_dates_present": len(both),
         "reported_before_event": sum(1 for g, d in both if g < d),
         "reported_more_than_1_year_after_event": sum(1 for g, d in both if (g - d).days > 365),
-        "datum_missing_but_gemeldet_present": sum(1 for g, d in zip(gemeldet, datum) if g and not d),
     }
     for i, (g, d) in enumerate(zip(gemeldet, datum)):
         if d is None and not c.get("Datum", [""] * n)[i]:

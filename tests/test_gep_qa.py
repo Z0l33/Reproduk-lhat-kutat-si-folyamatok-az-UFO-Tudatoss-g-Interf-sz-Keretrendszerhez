@@ -118,3 +118,20 @@ class DateErrorTypes(unittest.TestCase):
         self.assertEqual(b["count"], 2)
         self.assertEqual(b["by_error_type"], {"contains_text": 1, "year_only": 1})
         self.assertNotIn("SECRETWORD", json.dumps(rep))
+
+
+class PrecisionRules(unittest.TestCase):
+    def test_partial_dates_never_get_a_delay(self):
+        rep = QA().run_qa(line(Fallnummer="a", Datum="2020", Gemeldet="2021-06-01"),
+                          line(Fallnummer="b", Datum="05.2020", Gemeldet="2019-01-01"),
+                          line(Fallnummer="c", Datum="2020-01-01", Gemeldet="2022-06-01"),
+                          line(Fallnummer="d", Datum="", Gemeldet="2020-01-01"))
+        d = rep["dates"]
+        self.assertEqual(d["Datum_precision"], {"full": 1, "year_month": 1, "year_only": 1,
+                                                "other_unparsable": 0, "missing": 1})
+        self.assertTrue(d["Datum_precision_sums_to_rows"])
+        self.assertEqual(d["both_dates_present"], 1)           # only the full-precision row
+        self.assertEqual(d["reported_before_event"], 0)         # row b (2019 < 05.2020) is NOT counted
+        self.assertEqual(d["reported_more_than_1_year_after_event"], 1)
+        self.assertEqual(d["gemeldet_present_by_datum_precision"],
+                         {"full": 1, "year_month": 1, "year_only": 1, "other_unparsable": 0, "missing": 1})
