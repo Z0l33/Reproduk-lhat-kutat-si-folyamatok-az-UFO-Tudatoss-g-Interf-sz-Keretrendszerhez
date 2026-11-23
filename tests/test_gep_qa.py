@@ -135,3 +135,40 @@ class PrecisionRules(unittest.TestCase):
         self.assertEqual(d["reported_more_than_1_year_after_event"], 1)
         self.assertEqual(d["gemeldet_present_by_datum_precision"],
                          {"full": 1, "year_month": 1, "year_only": 1, "other_unparsable": 0, "missing": 1})
+
+
+class AgeHeuristic(unittest.TestCase):
+    def ages(self, text):
+        from ufo_pipeline.gep_qa import age_findings
+        return age_findings(text)
+
+    def test_person_bound_forms(self):
+        self.assertEqual(self.ages("Die 45-jährige Frau sah ein Licht"), [45])
+        self.assertEqual(self.ages("ein 12 jähriger Junge"), [12])
+        self.assertEqual(self.ages("Zeuge, 63 Jahre alt, meldete"), [63])
+        self.assertEqual(self.ages("Zeugin (34) sah"), [34])
+        self.assertEqual(self.ages("Zeuge (34 J.) sah"), [34])   # matched by two forms, counted once
+        self.assertEqual(self.ages("Frau (30) und Mann (41)"), [30, 41])
+
+    def test_objects_and_time_spans_are_not_person_ages(self):
+        for text in ("Eine 20-jährige Erfahrung des Piloten", "vor 20 Jahren gab es einen Fall",
+                     "das Haus ist 100 Jahre alt", "seit 10 Jahren"):
+            self.assertEqual(self.ages(text), [], text)
+
+    def test_report_counts_broad_vs_strict_without_text(self):
+        secret = "VERTRAULICH"
+        rep = QA().run_qa(line(Fallnummer="a", Sachverhalt=f"{secret} 45-jährige Frau und Zeuge (15)"),
+                          line(Fallnummer="b", Sachverhalt="das Haus ist 90 Jahre alt"),
+                          line(Fallnummer="c", Sachverhalt="nichts"))
+        a = rep["privacy_screen"]["age_analysis"]
+        self.assertEqual((a["rows_strict"], a["rows_broad"], a["rows_broad_not_strict"]), (1, 2, 1))
+        self.assertEqual(a["rows_with_more_than_one_strict_age"], 1)
+        self.assertEqual(a["strict_age_values"]["under_18"], 1)
+        self.assertEqual(rep["summary"]["rule_counts"]["sachverhalt_person_age_strict"], 1)
+        self.assertEqual(rep["summary"]["rule_counts"]["sachverhalt_age_phrase_unclassified"], 1)
+        self.assertNotIn(secret, json.dumps(rep))
+
+    def test_evidence_levels_present(self):
+        rep = QA().run_qa(line())
+        for k in ("facts", "heuristic_hits", "unverified_assumptions"):
+            self.assertTrue(rep["evidence_levels"][k])

@@ -35,9 +35,41 @@ PRIVACY_PATTERNS = {
         r"\b[A-ZÄÖÜ][\wäöüß.-]*(?:straße|strasse|str\.|weg|gasse|platz|allee)\s*\d+"),
     "salutation_name": re.compile(r"\b(?:Herr|Frau|Hr\.|Fr\.|Dr\.)\s+[A-ZÄÖÜ][a-zäöüß]+"),
     "first_person": re.compile(r"\b(?:ich|mein|meine|meinem|meiner|mir|mich)\b", re.I),
-    "age_mention": re.compile(r"\b\d{1,2}[- ]?jährig|\b\d{1,2} Jahre alt", re.I),
+    "age_phrase_broad": re.compile(r"\b\d{1,2}[- ]?jährig|\b\d{1,2} Jahre alt", re.I),
     "coordinates": re.compile(r"\d{1,3}[.,]\d{3,}\s*(?:°|[NSEOW]\b)"),
 }
+# Closed vocabulary of person nouns (German). Used only to decide whether an age phrase refers to a
+# person; no matched text is ever stored or printed.
+PERSON_NOUNS = ("mann|männer|frau|frauen|zeuge|zeugen|zeugin|zeuginnen|kind|kinder|junge|jungen|mädchen|"
+                "person|personen|schüler|schülerin|jugendliche|jugendlicher|jugendlichen|rentner|rentnerin|"
+                "student|studentin|beobachter|beobachterin|ehepaar|landwirt|pilot|polizist|soldat|fischer|"
+                "bauer|förster|hausfrau|melder|melderin|anrufer|anruferin|herr|dame|senior|seniorin|"
+                "teenager|baby|säugling|kleinkind|tochter|sohn|vater|mutter|bruder|schwester|enkel")
+_P = r"(?:" + PERSON_NOUNS + r")"
+AGE_FORMS = {
+    # "45-jährige(r) [adjective(s)] <person noun>"
+    "number_jaehrig_then_person": re.compile(
+        r"\b(\d{1,2})[- ]?jährig\w*\s+(?:\w+\s+){0,2}" + _P + r"\b", re.I),
+    # "<person noun> [,|(] 45 Jahre alt|J.|jährig|Jahre"
+    "person_then_number_years": re.compile(
+        r"\b" + _P + r"\b[\s,(]{1,3}(?:\w+\s+){0,1}(\d{1,2})\s?(?:Jahre alt|J\.|jährig|Jahre\b)", re.I),
+    # "<person noun> (45)" or "(45 J.)"
+    "person_then_bracket_number": re.compile(r"\b" + _P + r"\b\s*\((\d{1,2})(?:\s?(?:J\.?|Jahre))?\)", re.I),
+    # "ist/war/sei 45 Jahre alt"
+    "number_jahre_alt": re.compile(r"\b(\d{1,2}) Jahre alt\b", re.I),
+}
+STRICT_AGE_FORMS = ("number_jaehrig_then_person", "person_then_number_years", "person_then_bracket_number")
+
+
+def age_findings(text: str) -> List[int]:
+    """Ages (as integers) of person-bound age phrases in a text. The text itself is not returned."""
+    found: Dict[int, int] = {}  # start position of the number -> age (one age per position)
+    for name in STRICT_AGE_FORMS:
+        for m in AGE_FORMS[name].finditer(text):
+            found.setdefault(m.start(1), int(m.group(1)))
+    return [found[k] for k in sorted(found)]
+
+
 ORT_PATTERNS = {
     "has_digit": re.compile(r"\d"),
     "street_suffix": re.compile(r"(?:straße|strasse|str\.|weg|gasse|platz|allee)", re.I),
@@ -298,6 +330,28 @@ def analyse(path: Union[str, Path]) -> Dict[str, Any]:
         priv["Sichtungsort"]["rows_matching"][pname] = sum(1 for v in ort if v and rx.search(v))
     priv["Sichtungsort"]["rows_matching"]["coordinates"] = sum(
         1 for v in ort if v and PRIVACY_PATTERNS["coordinates"].search(v))
+    broad_rows = [i for i, v in enumerate(sach) if v and PRIVACY_PATTERNS["age_phrase_broad"].search(v)]
+    strict_ages = {i: age_findings(v) for i, v in enumerate(sach) if v}
+    strict_rows = [i for i, a in strict_ages.items() if a]
+    all_ages = [a for i in strict_rows for a in strict_ages[i]]
+    per_form = {name: sum(1 for v in sach if v and AGE_FORMS[name].search(v)) for name in AGE_FORMS}
+    broad_only = [i for i in broad_rows if i not in set(strict_rows)]
+    priv["age_analysis"] = {
+        "definition": "strict = an age phrase bound to a person noun from a closed German vocabulary; "
+                      "broad = any 'NN-jährig' or 'NN Jahre alt'. Heuristic: neither proves a real person.",
+        "rows_broad": len(broad_rows), "rows_strict": len(strict_rows),
+        "rows_broad_not_strict": len(broad_only),
+        "rows_by_form": per_form,
+        "rows_with_more_than_one_strict_age": sum(1 for i in strict_rows if len(strict_ages[i]) > 1),
+        "strict_age_values": {"count": len(all_ages),
+                              "under_18": sum(1 for a in all_ages if a < 18),
+                              "over_100": sum(1 for a in all_ages if a > 100),
+                              "by_band": _top(Counter(
+                                  "0-17" if a < 18 else "18-39" if a < 40 else "40-64" if a < 65 else "65+"
+                                  for a in all_ages), 10)},
+        "unverified": "rows_broad_not_strict could not be assigned to a person or to something else "
+                      "without reading the text; they are neither confirmed nor dismissed.",
+    }
     text_counts = Counter(_norm(v) for v in sach if v)
     priv["Sachverhalt"]["rows_with_identical_text_elsewhere"] = sum(v for v in text_counts.values() if v > 1)
     quasi = [(d, t, o, p) for d, t, o, p in zip(c.get("Datum", []), c.get("lokale Uhrzeit", []), ort, plz)
@@ -314,8 +368,12 @@ def analyse(path: Union[str, Path]) -> Dict[str, Any]:
     report["privacy_screen"] = priv
     for i, v in enumerate(sach):
         if v and any(PRIVACY_PATTERNS[k].search(v) for k in
-                     ("email", "url", "phone_like", "street_with_number", "salutation_name", "age_mention")):
+                     ("email", "url", "phone_like", "street_with_number", "salutation_name")):
             flag("sachverhalt_direct_identifier_pattern", i)
+        if strict_ages.get(i):
+            flag("sachverhalt_person_age_strict", i)
+        elif i in set(broad_only):
+            flag("sachverhalt_age_phrase_unclassified", i)
     for i, v in enumerate(sach):
         if v and text_counts[_norm(v)] > 1:
             flag("duplicate_sachverhalt_text", i)
@@ -329,6 +387,19 @@ def analyse(path: Union[str, Path]) -> Dict[str, Any]:
         "rows": n, "rows_with_at_least_one_flag": len(flagged),
         "rule_counts": dict(sorted(((k, len(v)) for k, v in flags.items()), key=lambda kv: (-kv[1], kv[0]))),
         "free_text_columns_never_echoed": list(FREE_TEXT),
+    }
+    report["evidence_levels"] = {
+        "facts": ["input", "identifier", "geography (counts and formats)", "dates.Datum_precision",
+                  "dates.Datum_unparsable_breakdown", "classification.value_counts",
+                  "summary.rule_counts for structural rules (missing_*, datum_*, plz_*, hendry_*)"],
+        "heuristic_hits": ["privacy_screen.*.rows_matching", "privacy_screen.age_analysis",
+                           "summary.rule_counts: sachverhalt_*, sichtungsort_*, duplicate_sachverhalt_text"],
+        "unverified_assumptions": [
+            "that a heuristic hit corresponds to a real personal identifier (not checked: no text is read)",
+            "that PLZ_unvollstaendig and the Hynek/Hendry codes mean what their names suggest (GEP "
+            "documentation not consulted)",
+            "that the dataset is free of submitter personal data, as its description states",
+            "that Datum/Gemeldet formats are consistently day-month-year (only parseability was tested)"],
     }
     report["input"]["sha256_after"] = sha256_file(path)
     report["input"]["unchanged_during_analysis"] = report["input"]["sha256_after"] == sha_before
