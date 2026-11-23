@@ -66,7 +66,8 @@ def run_analysis(config: Dict[str, Any], *, base_dir: PathLike = ".") -> Dict[st
         id_column=config.get("validation", {}).get("id_column"),
         feature_columns=leak_cfg.get("feature_columns", []), split_column=leak_cfg.get("split_column"),
         train_value=leak_cfg.get("train_value", "train"), test_value=leak_cfg.get("test_value", "test"),
-        time_column=leak_cfg.get("time_column"), proxy_threshold=leak_cfg.get("proxy_threshold", 0.99))
+        time_column=leak_cfg.get("time_column"), proxy_threshold=leak_cfg.get("proxy_threshold", 0.99),
+        include_examples=synthetic)
 
     prereg_info: Optional[Dict[str, Any]] = None
     prereg_problems: Optional[List[str]] = None

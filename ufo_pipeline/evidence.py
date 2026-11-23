@@ -107,6 +107,10 @@ def evaluate_replication(original: Dict[str, Any], replication: Dict[str, Any]) 
     'invalid' = not a genuine independent replication (never counts for or against anything).
     """
     reasons: List[str] = []
+    for label, report in (("original", original), ("replication", replication)):
+        if not (report.get("data_access") or {}).get("mode"):
+            reasons.append(f"{label} report has no data_access section: not produced by the "
+                           "access-controlled pipeline")
     od, rd = original.get("dataset", {}), replication.get("dataset", {})
     if od.get("synthetic") or rd.get("synthetic"):
         reasons.append("synthetic data cannot establish or test replication")

@@ -37,7 +37,8 @@ def _date(value: str):
     return None
 
 
-def profile_csv(path: Union[str, Path]) -> Dict[str, Any]:
+def profile_csv(path: Union[str, Path], is_denied: Any = None) -> Dict[str, Any]:
+    """is_denied(name) -> bool: for such columns only counts are reported, never values or extremes."""
     raw = Path(path).read_bytes()
     text, encoding = _decode(raw)
     sample = text[:20000]
@@ -63,6 +64,10 @@ def profile_csv(path: Union[str, Path]) -> Dict[str, Any]:
         filled = [v for v in values if v]
         info: Dict[str, Any] = {"name": name, "filled": len(filled),
                                 "empty": len(values) - len(filled), "distinct": len(set(filled))}
+        if is_denied is not None and is_denied(name):
+            info["values_withheld"] = True
+            report["columns"].append(info)
+            continue
         if filled:
             nums = [float(v.replace(",", ".")) for v in filled if _NUM.match(v)]
             dates = [d for d in (_date(v) for v in filled) if d]

@@ -68,3 +68,21 @@ column never reaches validation, leakage detection or statistics. A violation st
 `COLUMN ACCESS DENIED` (exit code 2) and writes no report. The policy location is fixed; a config cannot
 override it. A real dataset without a policy entry is refused. Not covered: re-identification through
 combinations of *allowed* columns (see `reports/`); choose allowlists conservatively.
+
+## Data access paths and limits of assurance
+
+Analysis data is read in exactly one place, `access.load_csv_allowlisted`, after `resolve_access` has
+checked the config; `pipeline.py`, `validation.py`, `stats.py` and `evidence.py` contain no file-reading
+code (a test checks this by parsing the sources and registers every module that reads files). Two audit
+tools read whole files on purpose and emit only aggregates: `profile` (withholds values of denied columns)
+and `gep-qa`. Record identifiers of real datasets are not written to reports (`leakage` findings keep counts
+only; examples appear for synthetic data only). Replication reports must carry a `data_access` section, so
+reports from outside the access-controlled pipeline cannot count as replication.
+
+What this does **not** prove: the tests show that, for the code paths in this repository and the inputs
+used in the tests, denied columns are not loaded by the analysis layer and tested outputs contain no
+canary values. They cannot show that nothing outside these tests (another process, a modified copy of the
+code, shell access to the machine, a debugger, caches or swap files) can read the data file. Keep the CSV
+off the repository and Notion, restrict who can run the pipeline on it, and treat the reports as aggregate
+outputs only. Tests run in per-test empty working directories, fixture constants are guarded against
+mutation, and CI runs four shuffled test processes concurrently and requires a clean working tree.
