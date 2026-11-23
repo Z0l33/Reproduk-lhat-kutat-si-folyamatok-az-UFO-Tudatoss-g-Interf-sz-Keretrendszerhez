@@ -1,0 +1,43 @@
+name: notion-sync
+
+# Manual only. Verifies rows with Pipeline status = submitted in the Notion Submissions database.
+# Needs the repository secret NOTION_TOKEN (a Notion integration with access to that database).
+# Default is a dry run: provenance is written, Notion is NOT updated.
+on:
+  workflow_dispatch:
+    inputs:
+      database_id:
+        description: "Notion Submissions database id"
+        required: true
+      apply:
+        description: "Write results back to Notion"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Verify submitted rows
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          DATABASE_ID: ${{ inputs.database_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          flags=""
+          if [ "${{ inputs.apply }}" = "true" ]; then flags="--apply"; fi
+          python -m ufo_pipeline notion-sync --database-id "$DATABASE_ID" --run-url "$RUN_URL" $flags
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: provenance
+          path: provenance/*.json
+          if-no-files-found: ignore
