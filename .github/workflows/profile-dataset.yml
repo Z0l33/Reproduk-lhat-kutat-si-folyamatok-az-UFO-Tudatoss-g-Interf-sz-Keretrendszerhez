@@ -47,7 +47,7 @@ jobs:
           ds="${{ inputs.dataset || 'gep-ufo-uap-2026-10' }}"
           shopt -s nullglob
           for f in "data/raw/$ds"/*.csv; do
-            python -m ufo_pipeline gep-qa "$f" --out qa-report.json > /dev/null
+            python -m ufo_pipeline gep-qa "$f" --out qa-report.json
             echo "### QA report for $f" >> "$GITHUB_STEP_SUMMARY"
             echo '```json' >> "$GITHUB_STEP_SUMMARY"
             cat qa-report.json >> "$GITHUB_STEP_SUMMARY"
