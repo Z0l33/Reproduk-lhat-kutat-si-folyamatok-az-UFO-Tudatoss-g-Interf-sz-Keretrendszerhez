@@ -92,6 +92,23 @@
    "missing": 263,
    "unparsable": 627
   },
+  "Datum_unparsable_breakdown": {
+   "by_error_type": {
+    "year_month_only": 343,
+    "year_only": 284
+   },
+   "count": 627,
+   "format_shapes": {
+    "99.9{n}": 343,
+    "9{n}": 284
+   },
+   "length_distribution": {
+    "4": 284,
+    "7": 343
+   },
+   "note": "shapes: digits shown as 9, letters as A; no concrete values are printed",
+   "with_gemeldet_present": 477
+  },
   "Gemeldet": {
    "after_2026_10_31": 0,
    "equal_1970_01_01": 1,
