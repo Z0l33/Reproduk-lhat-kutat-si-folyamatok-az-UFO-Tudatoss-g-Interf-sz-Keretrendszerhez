@@ -6,7 +6,7 @@
       "record_id": "23906585",
       "doi": "10.5281/zenodo.23906585",
       "title": "UFO / UAP Falldaten 1972-2026.10 (GEP e.V.), version 2026.10",
-      "notes": "Record ID, DOI, version, file name and provider MD5 were read from the public Zenodo record page on 2026-11-23 and match the values recorded in the Notion data registry. No SHA-256 pin yet: fetch once, review the file, then pin. The reuse licence is NOT independently confirmed: an automated read of the record page reported CDLA-Permissive-1.0, while the Notion registry says no reusable licence is identified. Check the Rights section on the record page before any redistribution.",
+      "notes": "Record ID, DOI, version, file name and provider MD5 were read from the public Zenodo record page on 2026-11-23 and match the Notion data registry. No SHA-256 pin yet: fetch once, review the file, then pin. Licence: the record page's Rights section lists 'Community Data License Agreement Permissive 1.0' (link https://cdla.io/permissive-1-0); this was read twice with an automated page fetch. The Notion registry still records the licence as unverified, and no person has confirmed it yet. Confirm on the record page before redistributing. The free-text case reports may contain identifying details even though submitter personal data are stated to be excluded.",
       "files": [
         {
           "name": "UFO-UAP-Falldaten_GEP_1972-2026.10.csv",
