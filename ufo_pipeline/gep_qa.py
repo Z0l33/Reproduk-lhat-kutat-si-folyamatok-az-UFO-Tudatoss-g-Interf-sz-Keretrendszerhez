@@ -160,6 +160,124 @@ def datum_precision(raw: List[str], parsed: List[Any]) -> List[str]:
     return out
 
 
+# Expected PLZ format by country (closed table, German country names as used in the file). Checked only
+# for the countries listed; everything else is reported as "not checked".
+PLZ_DIGITS_BY_LAND = {"Deutschland": 5, "Österreich": 4, "Schweiz": 4, "Liechtenstein": 4, "Luxemburg": 4,
+                      "Belgien": 4, "Dänemark": 4, "Ungarn": 4, "Frankreich": 5, "Italien": 5,
+                      "Spanien": 5, "Kroatien": 5}
+PLACEHOLDER_RE = re.compile(r"^(?:\?+|x+|-+|n/?a|k\.?a\.?|unbekannt|\.+)\Z", re.I)
+_PUNCT = {"(": "open_parenthesis", ")": "close_parenthesis", " ": "space", "-": "hyphen", "/": "slash",
+          ".": "dot", ",": "comma", "*": "asterisk", "x": "letter_x", "X": "letter_x"}
+
+
+def _land_group(land: str) -> str:
+    if not land or PLACEHOLDER_RE.match(land):
+        return "missing_or_placeholder"
+    return land if land in ("Deutschland", "Österreich", "Schweiz") else "other_country"
+
+
+def _char_kinds(values: List[str]) -> Dict[str, int]:
+    """In how many values each non-digit character kind occurs (kinds, not the values)."""
+    counts: Counter = Counter()
+    for v in values:
+        kinds = set()
+        for ch in v:
+            if ch.isdigit():
+                continue
+            kinds.add(_PUNCT.get(ch, "letter" if ch.isalpha() else "other_symbol"))
+        counts.update(kinds)
+    return dict(sorted(counts.items()))
+
+
+def _length_dist(values: List[str]) -> Dict[str, int]:
+    return {str(k): v for k, v in sorted(Counter(len(x) for x in values).items())}
+
+
+def geography_deep(land: List[str], bund: List[str], plz: List[str], plzu: List[str],
+                   ort: List[str]) -> Dict[str, Any]:
+    """Format and consistency checks for the geographic fields. Counts only; codes are never printed."""
+    n = len(land)
+    group = [_land_group(x) for x in land]
+    plz_idx = [i for i, v in enumerate(plz) if v]
+    out: Dict[str, Any] = {}
+
+    # --- Land
+    out["Land"] = {
+        "placeholder_values": sum(1 for x in land if x and PLACEHOLDER_RE.match(x)),
+        "non_country_marker": sum(1 for x in land if re.search(r"ozean|meer\b|see\b", x, re.I)),
+        "groups": dict(sorted(Counter(group).items())),
+    }
+    # --- PLZ
+    digits = [plz[i] for i in plz_idx if plz[i].isdigit()]
+    non_digits = [plz[i] for i in plz_idx if not plz[i].isdigit()]
+    by_group: Dict[str, Any] = {}
+    for g in sorted(set(group)):
+        vals = [plz[i] for i in plz_idx if group[i] == g]
+        by_group[g] = {"filled": len(vals), "digits_only": sum(1 for v in vals if v.isdigit()),
+                       "length_distribution": _length_dist(vals)}
+    expected_mismatch: Dict[str, Any] = {}
+    for country, ndig in PLZ_DIGITS_BY_LAND.items():
+        vals = [plz[i] for i in plz_idx if land[i] == country]
+        if vals:
+            expected_mismatch[country] = {
+                "filled": len(vals), "expected_digits": ndig,
+                "not_expected_format": sum(1 for v in vals if not (v.isdigit() and len(v) == ndig)),
+                "shorter_all_digits": sum(1 for v in vals if v.isdigit() and len(v) < ndig),
+                "longer_or_non_digit": sum(1 for v in vals if not v.isdigit() or len(v) > ndig)}
+    de5 = [plz[i] for i in plz_idx if land[i] == "Deutschland" and plz[i].isdigit() and len(plz[i]) == 5]
+    cells = Counter(plz[i] for i in plz_idx)
+    row_cell = [cells[plz[i]] for i in plz_idx]
+    out["PLZ"] = {
+        "filled": len(plz_idx), "digits_only": len(digits), "not_digits_only": len(non_digits),
+        "length_distribution": _length_dist([plz[i] for i in plz_idx]),
+        "non_digit_character_kinds_in_values": _char_kinds(non_digits),
+        "non_digit_value_shapes": _top(Counter(_pattern(v) for v in non_digits), 15),
+        "leading_zero_preserved_count": sum(1 for v in digits if v.startswith("0") and len(v) > 1),
+        "all_zero_values": sum(1 for v in digits if int(v) == 0),
+        "repeated_single_digit_values": sum(1 for v in digits if len(v) >= 3 and len(set(v)) == 1 and int(v) != 0),
+        "placeholder_values": sum(1 for i in plz_idx if PLACEHOLDER_RE.match(plz[i])),
+        "germany_five_digit_starting_00": sum(1 for v in de5 if v.startswith("00")),
+        "by_land_group": by_group,
+        "expected_format_by_country": expected_mismatch,
+        "filled_but_land_missing_or_placeholder": sum(1 for i in plz_idx if group[i] == "missing_or_placeholder"),
+        "small_cells": {"distinct_plz": len(cells),
+                        "rows_in_plz_with_fewer_than_5_rows": sum(1 for c in row_cell if c < 5),
+                        "rows_in_plz_with_fewer_than_3_rows": sum(1 for c in row_cell if c < 3),
+                        "rows_in_plz_with_exactly_1_row": sum(1 for c in row_cell if c == 1)},
+    }
+    # --- PLZ_unvollstaendig
+    u_idx = [i for i, v in enumerate(plzu) if v]
+    u_vals = [plzu[i] for i in u_idx]
+    u_digits = [v for v in u_vals if v.isdigit()]
+    long_ = [v for v in u_digits if len(v) >= 4]
+    out["PLZ_unvollstaendig"] = {
+        "filled": len(u_vals), "digits_only": len(u_digits), "not_digits_only": len(u_vals) - len(u_digits),
+        "length_distribution": _length_dist(u_vals),
+        "non_digit_character_kinds_in_values": _char_kinds([v for v in u_vals if not v.isdigit()]),
+        "groups": {"1_to_3_digits": sum(1 for v in u_digits if len(v) <= 3),
+                   "4_or_more_digits": len(long_),
+                   "4_or_more_digits_by_length": _length_dist(long_),
+                   "6_or_more_digits": sum(1 for v in long_ if len(v) >= 6)},
+        "values_ending_with_zero_padding": {"ends_with_000": sum(1 for v in long_ if v.endswith("000")),
+                                            "ends_with_0000": sum(1 for v in long_ if v.endswith("0000"))},
+        "leading_zero_preserved_count": sum(1 for v in u_digits if v.startswith("0") and len(v) > 1),
+        "land_groups_of_filled_rows": dict(sorted(Counter(group[i] for i in u_idx).items())),
+        "sichtungsort_filled_for_filled_rows": sum(1 for i in u_idx if ort[i]),
+        "overlap_with_plz": sum(1 for i in u_idx if plz[i]),
+        "meaning_status": "UNVERIFIED: the name suggests an incomplete (truncated) postal code, but values "
+                          "with 4 or more digits and zero padding do not fit a 1-3 digit prefix reading. "
+                          "Consult the GEP documentation before any use of this field.",
+    }
+    # --- Bundesland
+    out["Bundesland"] = {
+        "placeholder_values": sum(1 for x in bund if x and PLACEHOLDER_RE.match(x)),
+        "filled_by_land_group": dict(sorted(Counter(group[i] for i, v in enumerate(bund) if v).items())),
+        "filled_but_land_missing_or_placeholder": sum(1 for i, v in enumerate(bund) if v and group[i] == "missing_or_placeholder"),
+        "missing_for_germany": sum(1 for i in range(n) if land[i] == "Deutschland" and not bund[i]),
+    }
+    return out
+
+
 def _date_error_report(raw: List[str], parsed: List[Any], gemeldet_raw: List[str]) -> Dict[str, Any]:
     bad = [i for i, (r, p) in enumerate(zip(raw, parsed)) if r and p is None]
     types = Counter(classify_date_value(raw[i]) for i in bad)
@@ -232,9 +350,22 @@ def analyse(path: Union[str, Path]) -> Dict[str, Any]:
                                "format_patterns": _top(Counter(_pattern(v) for v in plzu if v), 15)},
         "plz_and_plz_unvollstaendig_both_filled": sum(1 for a, b in zip(plz, plzu) if a and b),
     }
+    deep = geography_deep(land, bund, plz, plzu, c.get("Sichtungsort", [""] * n))
+    report["geography_deep"] = deep
     for i, v in enumerate(land):
         if not v:
             flag("missing_land", i)
+        elif PLACEHOLDER_RE.match(v):
+            flag("land_placeholder", i)
+        elif re.search(r"ozean|meer\b|see\b", v, re.I):
+            flag("land_not_a_country", i)
+    for i, v in enumerate(plzu):
+        if v.isdigit() and len(v) >= 4:
+            flag("plz_unvollstaendig_4_or_more_digits", i)
+    for i, v in enumerate(plz):
+        exp = PLZ_DIGITS_BY_LAND.get(land[i])
+        if v and exp and not (v.isdigit() and len(v) == exp):
+            flag("plz_format_unexpected_for_land", i)
     for i, v in enumerate(plz):
         if v and (not v.isdigit() or len(v) > 5):
             flag("plz_nonnumeric_or_over_5_digits", i)
@@ -391,10 +522,14 @@ def analyse(path: Union[str, Path]) -> Dict[str, Any]:
     report["evidence_levels"] = {
         "facts": ["input", "identifier", "geography (counts and formats)", "dates.Datum_precision",
                   "dates.Datum_unparsable_breakdown", "classification.value_counts",
-                  "summary.rule_counts for structural rules (missing_*, datum_*, plz_*, hendry_*)"],
+                  "geography_deep (counts, lengths, character kinds, group sizes)",
+                  "summary.rule_counts for structural rules (missing_*, datum_*, plz_*, hendry_*, land_*)"],
         "heuristic_hits": ["privacy_screen.*.rows_matching", "privacy_screen.age_analysis",
                            "summary.rule_counts: sachverhalt_*, sichtungsort_*, duplicate_sachverhalt_text"],
         "unverified_assumptions": [
+            "that the country-specific PLZ formats used for the consistency check (PLZ_DIGITS_BY_LAND) are "
+            "the right expectation for every row of that country",
+            "that PLZ_unvollstaendig holds truncated postal codes (see geography_deep.PLZ_unvollstaendig)",
             "that a heuristic hit corresponds to a real personal identifier (not checked: no text is read)",
             "that PLZ_unvollstaendig and the Hynek/Hendry codes mean what their names suggest (GEP "
             "documentation not consulted)",

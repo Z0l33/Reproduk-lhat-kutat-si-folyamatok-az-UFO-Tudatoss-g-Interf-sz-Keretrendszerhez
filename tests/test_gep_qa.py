@@ -172,3 +172,65 @@ class AgeHeuristic(unittest.TestCase):
         rep = QA().run_qa(line())
         for k in ("facts", "heuristic_hits", "unverified_assumptions"):
             self.assertTrue(rep["evidence_levels"][k])
+
+
+class GeographyDeep(unittest.TestCase):
+    def geo(self, *rows):
+        return QA().run_qa(*[line(Fallnummer=str(i), **kw) for i, kw in enumerate(rows)])
+
+    def test_plz_formats_and_expected_by_country(self):
+        rep = self.geo(dict(Land="Deutschland", PLZ="80331"), dict(Land="Deutschland", PLZ="1067"),
+                       dict(Land="Deutschland", PLZ="01067"), dict(Land="Schweiz", PLZ="8000"),
+                       dict(Land="Schweiz", PLZ="80000"), dict(Land="Vereinigtes Königreich", PLZ="SW1A 1AA"),
+                       dict(Land="Deutschland", PLZ="00123"))
+        g = rep["geography_deep"]["PLZ"]
+        de = g["expected_format_by_country"]["Deutschland"]
+        self.assertEqual((de["filled"], de["not_expected_format"], de["shorter_all_digits"]), (4, 1, 1))
+        self.assertEqual(g["expected_format_by_country"]["Schweiz"]["longer_or_non_digit"], 1)
+        self.assertEqual(g["germany_five_digit_starting_00"], 1)
+        self.assertEqual(g["leading_zero_preserved_count"], 2)
+        self.assertEqual(g["non_digit_character_kinds_in_values"], {"letter": 1, "space": 1})
+        self.assertEqual(rep["summary"]["rule_counts"]["plz_format_unexpected_for_land"], 2)
+
+    def test_placeholders_zero_and_repeated(self):
+        rep = self.geo(dict(PLZ="0"), dict(PLZ="99999"), dict(PLZ="xxxxx"), dict(PLZ="?"), dict(Land="x"),
+                       dict(Land="Indischer Ozean"))
+        g = rep["geography_deep"]
+        self.assertEqual(g["PLZ"]["all_zero_values"], 1)
+        self.assertEqual(g["PLZ"]["repeated_single_digit_values"], 1)
+        self.assertEqual(g["PLZ"]["placeholder_values"], 2)
+        self.assertEqual(g["Land"]["placeholder_values"], 1)
+        self.assertEqual(g["Land"]["non_country_marker"], 1)
+        self.assertEqual(rep["summary"]["rule_counts"]["land_placeholder"], 1)
+        self.assertEqual(rep["summary"]["rule_counts"]["land_not_a_country"], 1)
+
+    def test_plz_unvollstaendig_groups_and_padding(self):
+        rep = self.geo(dict(PLZ="", PLZ_unvollstaendig="80"), dict(PLZ="", PLZ_unvollstaendig="803"),
+                       dict(PLZ="", PLZ_unvollstaendig="8033"), dict(PLZ="", PLZ_unvollstaendig="65580000"),
+                       dict(PLZ="", PLZ_unvollstaendig="12(3)"), dict(PLZ="80331", PLZ_unvollstaendig="80"))
+        u = rep["geography_deep"]["PLZ_unvollstaendig"]
+        self.assertEqual(u["groups"]["1_to_3_digits"], 3)
+        self.assertEqual(u["groups"]["4_or_more_digits"], 2)
+        self.assertEqual(u["groups"]["6_or_more_digits"], 1)
+        self.assertEqual(u["values_ending_with_zero_padding"]["ends_with_0000"], 1)
+        self.assertEqual(u["non_digit_character_kinds_in_values"],
+                         {"close_parenthesis": 1, "open_parenthesis": 1})
+        self.assertEqual(u["overlap_with_plz"], 1)
+        self.assertIn("UNVERIFIED", u["meaning_status"])
+        self.assertEqual(rep["summary"]["rule_counts"]["plz_unvollstaendig_4_or_more_digits"], 2)
+
+    def test_small_cells_and_no_codes_in_report(self):
+        rep = self.geo(dict(PLZ="12345"), dict(PLZ="12345"), dict(PLZ="54321"))
+        c = rep["geography_deep"]["PLZ"]["small_cells"]
+        self.assertEqual((c["distinct_plz"], c["rows_in_plz_with_exactly_1_row"],
+                          c["rows_in_plz_with_fewer_than_3_rows"]), (2, 1, 3))
+        dump = json.dumps(rep)
+        for code in ("12345", "54321"):
+            self.assertNotIn(code, dump)
+
+    def test_bundesland_checks(self):
+        rep = self.geo(dict(Bundesland="", Land="Deutschland"), dict(Bundesland="Bayern", Land=""),
+                       dict(Bundesland="?", Land="Österreich"))
+        b = rep["geography_deep"]["Bundesland"]
+        self.assertEqual((b["missing_for_germany"], b["filled_but_land_missing_or_placeholder"],
+                          b["placeholder_values"]), (1, 1, 1))
