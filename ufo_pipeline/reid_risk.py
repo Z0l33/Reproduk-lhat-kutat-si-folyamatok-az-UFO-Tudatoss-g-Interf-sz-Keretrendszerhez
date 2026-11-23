@@ -59,7 +59,8 @@ def evaluate(rows: Sequence[Dict[str, Any]], key: Callable[[Dict[str, Any]], Opt
 def _levels(prefix: str) -> List[str]:
     return [f"{prefix}1_plz", f"{prefix}2_plz_age", f"{prefix}3_plz_age_date",
             f"{prefix}4_plz_age_date_time", f"{prefix}5_place_age_date",
-            f"{prefix}6_generalised_plz2_ageband_month"]
+            f"{prefix}6_generalised_plz2_ageband_month",
+            f"{prefix}7_coarse_plz1_ageband_decade"]
 
 
 def _age_key(r: Dict[str, Any]) -> Optional[tuple]:
@@ -79,7 +80,9 @@ def keys_with_age() -> Dict[str, Callable[[Dict[str, Any]], Optional[Hashable]]]
     def l5(r): return (r["place"], _age_key(r), r["date"]) if r["place"] and r["ages"] and r["date"] else None
     def l6(r): return ((r["plz"][:2], tuple(sorted({_band10(a) for a in r["ages"]})), r["date"][:7])
                        if r["plz"] and r["ages"] and r["date"] else None)
-    return dict(zip(_levels("L"), [lambda r: r["plz"] or None, l2, l3, l4, l5, l6]))
+    def l7(r): return ((r["plz"][:1], tuple(sorted({_band10(a) for a in r["ages"]})), r["date"][:3])
+                       if r["plz"] and r["ages"] and r["date"] else None)
+    return dict(zip(_levels("L"), [lambda r: r["plz"] or None, l2, l3, l4, l5, l6, l7]))
 
 
 def keys_without_age() -> Dict[str, Callable[[Dict[str, Any]], Optional[Hashable]]]:

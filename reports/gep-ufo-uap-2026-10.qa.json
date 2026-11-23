@@ -155,11 +155,13 @@
    "summary.rule_counts for structural rules (missing_*, datum_*, plz_*, hendry_*, land_*)"
   ],
   "heuristic_hits": [
+   "reidentification_risk (risk estimate only, file-internal)",
    "privacy_screen.*.rows_matching",
    "privacy_screen.age_analysis",
    "summary.rule_counts: sachverhalt_*, sichtungsort_*, duplicate_sachverhalt_text"
   ],
   "unverified_assumptions": [
+   "that uniqueness inside this file reflects uniqueness in the real population (reidentification_risk.assumptions)",
    "that the country-specific PLZ formats used for the consistency check (PLZ_DIGITS_BY_LAND) are the right expectation for every row of that country",
    "that PLZ_unvollstaendig holds truncated postal codes (see geography_deep.PLZ_unvollstaendig)",
    "that a heuristic hit corresponds to a real personal identifier (not checked: no text is read)",
@@ -642,6 +644,183 @@
   }
  },
  "qa_version": 1,
+ "reidentification_risk": {
+  "assumptions": [
+   "uniqueness is measured inside this file only; the real population is larger, so a unique row here may or may not be unique in reality",
+   "an attacker is assumed to know some of: place, date, time, a person's age",
+   "age comes from a heuristic text screen; it may belong to a person other than the reporter",
+   "reduced-precision and missing dates are excluded from every level that needs a full date"
+  ],
+  "cohorts": {
+   "minors_any_strict_age_under_18": 170,
+   "strict_person_bound_age": 1555,
+   "unclassified_age_phrase_not_verified": 57
+  },
+  "handling_note": "Rows with minor ages must not be redistributed or published at place level; treat the minors cohort as restricted data.",
+  "kind": "risk estimate, not proof of identifiability",
+  "minors_strict_cohort_banded_and_suppressed": {
+   "L1_plz": {
+    "eligible_rows": 162,
+    "rows_excluded_missing_component_or_reduced_date": "<10",
+    "rows_in_groups_smaller_than_5": 162,
+    "share_in_groups_smaller_than_5_band": "75%+"
+   },
+   "L2_plz_age": {
+    "eligible_rows": 162,
+    "rows_excluded_missing_component_or_reduced_date": "<10",
+    "rows_in_groups_smaller_than_5": 162,
+    "share_in_groups_smaller_than_5_band": "75%+"
+   },
+   "L3_plz_age_date": {
+    "eligible_rows": 108,
+    "rows_excluded_missing_component_or_reduced_date": 62,
+    "rows_in_groups_smaller_than_5": 108,
+    "share_in_groups_smaller_than_5_band": "75%+"
+   },
+   "L4_plz_age_date_time": {
+    "eligible_rows": 104,
+    "rows_excluded_missing_component_or_reduced_date": 66,
+    "rows_in_groups_smaller_than_5": 104,
+    "share_in_groups_smaller_than_5_band": "75%+"
+   },
+   "L5_place_age_date": {
+    "eligible_rows": 110,
+    "rows_excluded_missing_component_or_reduced_date": 60,
+    "rows_in_groups_smaller_than_5": 110,
+    "share_in_groups_smaller_than_5_band": "75%+"
+   },
+   "L6_generalised_plz2_ageband_month": {
+    "eligible_rows": 108,
+    "rows_excluded_missing_component_or_reduced_date": 62,
+    "rows_in_groups_smaller_than_5": 108,
+    "share_in_groups_smaller_than_5_band": "75%+"
+   }
+  },
+  "risk_indicator_bands": "share of eligible rows in groups smaller than 5: below 5% low, below 25% moderate, below 75% high, otherwise very_high. Thresholds are heuristic conventions, not legal or statistical standards.",
+  "strict_age_cohort": {
+   "L1_plz": {
+    "eligible_rows": 1514,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 41,
+    "rows_in_groups_smaller_than_5": 1504,
+    "share_in_groups_smaller_than_5": 0.993
+   },
+   "L2_plz_age": {
+    "eligible_rows": 1514,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 41,
+    "rows_in_groups_smaller_than_5": 1514,
+    "share_in_groups_smaller_than_5": 1.0
+   },
+   "L3_plz_age_date": {
+    "eligible_rows": 1318,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 237,
+    "rows_in_groups_smaller_than_5": 1318,
+    "share_in_groups_smaller_than_5": 1.0
+   },
+   "L4_plz_age_date_time": {
+    "eligible_rows": 1296,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 259,
+    "rows_in_groups_smaller_than_5": 1296,
+    "share_in_groups_smaller_than_5": 1.0
+   },
+   "L5_place_age_date": {
+    "eligible_rows": 1345,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 210,
+    "rows_in_groups_smaller_than_5": 1345,
+    "share_in_groups_smaller_than_5": 1.0
+   },
+   "L6_generalised_plz2_ageband_month": {
+    "eligible_rows": 1318,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 237,
+    "rows_in_groups_smaller_than_5": 1318,
+    "share_in_groups_smaller_than_5": 1.0
+   }
+  },
+  "suppression": {
+   "general_threshold": 5,
+   "groups_smaller_than_5": "merged into one band, never listed",
+   "minors_threshold": 10
+  },
+  "unclassified_cohort_not_verified": {
+   "L1_plz": {
+    "eligible_rows": 47,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 10,
+    "rows_in_groups_smaller_than_5": 47,
+    "share_in_groups_smaller_than_5": 1.0
+   },
+   "L2_plz_age": {
+    "eligible_rows": 47,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 10,
+    "rows_in_groups_smaller_than_5": 47,
+    "share_in_groups_smaller_than_5": 1.0
+   },
+   "L3_plz_age_date": {
+    "eligible_rows": 26,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 31,
+    "rows_in_groups_smaller_than_5": 26,
+    "share_in_groups_smaller_than_5": 1.0
+   },
+   "L4_plz_age_date_time": {
+    "eligible_rows": 26,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 31,
+    "rows_in_groups_smaller_than_5": 26,
+    "share_in_groups_smaller_than_5": 1.0
+   },
+   "L5_place_age_date": {
+    "eligible_rows": 27,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 30,
+    "rows_in_groups_smaller_than_5": 27,
+    "share_in_groups_smaller_than_5": 1.0
+   },
+   "L6_generalised_plz2_ageband_month": {
+    "eligible_rows": 26,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 31,
+    "rows_in_groups_smaller_than_5": 26,
+    "share_in_groups_smaller_than_5": 1.0
+   }
+  },
+  "without_age_all_rows": {
+   "N1_plz": {
+    "eligible_rows": 6089,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 682,
+    "rows_in_groups_smaller_than_5": 5338,
+    "share_in_groups_smaller_than_5": 0.877
+   },
+   "N2_plz_date": {
+    "eligible_rows": 5359,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 1412,
+    "rows_in_groups_smaller_than_5": 5354,
+    "share_in_groups_smaller_than_5": 0.999
+   },
+   "N3_plz_date_time": {
+    "eligible_rows": 5126,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 1645,
+    "rows_in_groups_smaller_than_5": 5126,
+    "share_in_groups_smaller_than_5": 1.0
+   },
+   "N4_place_date_time": {
+    "eligible_rows": 5556,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 1215,
+    "rows_in_groups_smaller_than_5": 5556,
+    "share_in_groups_smaller_than_5": 1.0
+   }
+  }
+ },
  "summary": {
   "free_text_columns_never_echoed": [
    "Sachverhalt",

@@ -312,3 +312,11 @@ class ReidentificationRisk(unittest.TestCase):
         r = self.rep(rows)["strict_age_cohort"]
         self.assertGreaterEqual(r["L3_plz_age_date"]["share_in_groups_smaller_than_5"],
                                 r["L6_generalised_plz2_ageband_month"]["share_in_groups_smaller_than_5"])
+
+
+    def test_coarse_level_is_not_riskier_than_fine_level(self):
+        rows = [self.person(40 + i % 3, plz=f"80{i % 3}{i % 7}1", datum=f"2020-01-{i % 9 + 1:02d}")
+                for i in range(30)]
+        r = self.rep(rows)["strict_age_cohort"]
+        self.assertGreaterEqual(r["L6_generalised_plz2_ageband_month"]["share_in_groups_smaller_than_5"],
+                                r["L7_coarse_plz1_ageband_decade"]["share_in_groups_smaller_than_5"])
