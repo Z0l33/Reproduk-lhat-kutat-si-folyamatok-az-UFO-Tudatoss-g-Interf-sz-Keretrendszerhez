@@ -114,26 +114,32 @@ def test_empty_database_is_a_successful_empty_run_not_a_verification(monkeypatch
     assert code == 0 and report["rows"] == 0 and report["datasets"] == {} and report["applied"] is False
 
 
-# ---- finding: a reply claiming has_more without a cursor makes the client resend the same query ----
+# ---- a reply claiming has_more without a cursor must not make the client resend the query ----
 class _StopAfter(Exception):
     pass
 
 
-@pytest.mark.xfail(strict=True, reason="documented gap, behaviour intentionally unchanged")
-def test_has_more_without_cursor_should_not_loop():
-    """KNOWN GAP (documented, not changed): the client repeats the same request forever when has_more is true
-    and next_cursor is missing. The fake stops the loop after 5 calls; the desired behaviour is an error after one."""
+@pytest.mark.parametrize("cursor", [None, "", 0, ["c"]])
+def test_has_more_without_cursor_fails_after_one_request(cursor):
     calls = []
 
     def urlopen(req, timeout=None):
         calls.append(1)
         if len(calls) > 5:
             raise _StopAfter()
-        return ok({"results": [], "has_more": True})
+        return ok({"results": [], "has_more": True, "next_cursor": cursor})
 
     with mock.patch("urllib.request.urlopen", urlopen):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="next_cursor"):
             ns.UrllibNotionClient(FAKE_TOKEN).query_submitted(DB)
+    assert len(calls) == 1
+
+
+def test_has_more_without_cursor_through_the_cli_writes_nothing(monkeypatch, capsys):
+    urlopen = mock.Mock(return_value=ok({"results": [page()], "has_more": True}))
+    code, out, err = run_cli(monkeypatch, urlopen, capsys, "--apply")
+    assert code == 2 and out == "" and "next_cursor" in err and FAKE_TOKEN not in err
+    assert urlopen.call_count == 1 and nothing_persisted()
 
 
 def test_pagination_follows_the_cursor_and_collects_all_pages():
@@ -227,17 +233,59 @@ def test_row_in_a_state_other_than_submitted_is_ignored_even_with_a_valid_claim(
         assert ns.rows_to_entries([ns.parse_row(p)]) == ([], {})
 
 
-@pytest.mark.xfail(strict=True, reason="documented gap, behaviour intentionally unchanged")
 @pytest.mark.parametrize("name", ["status is a bare string", "personal-data flag is a string property"])
 def test_wrongly_typed_property_should_be_rejected_not_crash(name):
-    """KNOWN GAP (documented, not changed): a property of the wrong JSON type raises AttributeError in parse_row,
-    which the CLI does not catch (traceback instead of a clean rejection). Fail-closed, but ungraceful."""
-    ns.parse_row(mutated(MALFORMED[name]))
+    """A property of the wrong JSON type is flagged as malformed and the row is rejected with a reason."""
+    row = ns.parse_row(mutated(MALFORMED[name]))
+    assert row["malformed"]
+    entries, problems = ns.rows_to_entries([{**row, "status": "submitted"}])
+    assert entries == [] and "unexpected type" in problems["p1"][0]
 
 
-@pytest.mark.xfail(strict=True, reason="documented gap, behaviour intentionally unchanged")
 def test_non_dict_page_should_be_rejected_not_crash():
-    ns.parse_row(None)
+    for bad in (None, "page", 5, [], [{"id": "p"}]):
+        row = ns.parse_row(bad)
+        assert row["page_id"] is None and row["status"] is None
+        assert ns.rows_to_entries([row]) == ([], {})        # not submitted: nothing to process
+
+
+def test_properties_of_the_wrong_container_type_are_rejected():
+    for bad in (["x"], "text", 5):      # falsy containers ([], "", 0) count as "no properties" and are ignored
+        row = ns.parse_row({"id": "p1", "properties": bad})
+        assert row["malformed"] == ["properties"]
+        entries, problems = ns.rows_to_entries([row])
+        assert entries == [] and "p1" in problems
+
+
+@pytest.mark.parametrize("name", ["status is a bare string", "personal-data flag is a string property", "properties is null"])
+@pytest.mark.parametrize("apply", [False, True])
+def test_malformed_rows_through_sync_download_nothing_and_write_only_failed(name, apply):
+    rec = Recorder([mutated(MALFORMED[name])])
+    report = ns.sync(rec, DB, "raw", "prov", rec.retriever, apply=apply)
+    assert rec.downloads == [] and report["datasets"] == {} and not Path("prov").exists()
+    assert report["applied"] is apply and (apply or rec.updated == [])
+    assert set(rec.updated) <= {"p1"}
+
+
+def test_garbage_pages_never_cause_a_write_to_a_made_up_page_id():
+    rec = Recorder([None, "page", {"properties": {ns.P_STATUS: "submitted"}}])   # no usable page id at all
+    report = ns.sync(rec, DB, "raw", "prov", rec.retriever, apply=True)
+    assert rec.updated == [] and rec.downloads == [] and not Path("prov").exists()
+    assert report["rows"] == 3
+
+
+def test_malformed_property_on_a_non_submitted_row_is_left_alone():
+    bad = page(status="verified")
+    bad["properties"][ns.P_PERSONAL] = "yes"
+    rec = Recorder([bad])
+    ns.sync(rec, DB, "raw", "prov", rec.retriever, apply=True)
+    assert rec.updated == [] and rec.downloads == []         # a verified row is never overwritten with "failed"
+
+
+def test_well_formed_rows_parse_exactly_as_before():
+    row = ns.parse_row(page(claim="a" * 64))
+    assert row["malformed"] == [] and row["status"] == "submitted" and row["decision"] == "pending"
+    assert row["personal_data"] is False and row["claimed_sha256"] == "a" * 64
 
 
 def test_valid_claim_must_be_exact_and_personal_rows_never_reach_the_retriever():

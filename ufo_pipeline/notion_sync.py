@@ -37,19 +37,44 @@ def _text(prop: Any) -> str:
 
 def parse_row(page: Dict[str, Any]) -> Dict[str, Any]:
     """Flatten a Notion page object into plain values. Missing or oddly typed fields become empty."""
-    props = page.get("properties") or {}
-    select = lambda name: ((props.get(name) or {}).get("select") or {}).get("name")  # noqa: E731
-    return {
+    if not isinstance(page, dict):
+        page = {}
+    raw_props = page.get("properties") or {}
+    malformed: List[str] = [] if isinstance(raw_props, dict) else ["properties"]
+    props: Dict[str, Any] = raw_props if isinstance(raw_props, dict) else {}
+
+    def select(name: str) -> Optional[str]:
+        value = props.get(name)
+        if value is None:
+            return None
+        sel = value.get("select") if isinstance(value, dict) else False
+        if sel is False or not (sel is None or isinstance(sel, dict)):
+            malformed.append(name)
+            return None
+        return None if sel is None else sel.get("name")
+
+    def checkbox(name: str) -> bool:
+        value = props.get(name)
+        if value is None:
+            return False
+        if not isinstance(value, dict):
+            malformed.append(name)
+            return False
+        return bool(value.get("checkbox"))
+
+    row = {
         "page_id": page.get("id"),
         "dataset_id": _text(props.get(P_ID)),
         "record_id": _text(props.get(P_RECORD)),
         "doi": _text(props.get(P_DOI)),
         "file_name": _text(props.get(P_FILE)),
         "claimed_sha256": _text(props.get(P_CLAIM)),
-        "personal_data": bool((props.get(P_PERSONAL) or {}).get("checkbox")),
+        "personal_data": checkbox(P_PERSONAL),
         "status": select(P_STATUS),
         "decision": select(P_DECISION),
     }
+    row["malformed"] = sorted(set(malformed))   # properties with an unexpected JSON type; never trusted
+    return row
 
 
 def rows_to_entries(rows: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], Dict[str, List[str]]]:
@@ -62,6 +87,11 @@ def rows_to_entries(rows: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], D
     problems: Dict[str, List[str]] = {}
     entries: Dict[str, Dict[str, Any]] = {}
     for row in rows:
+        bad = row.get("malformed") or []
+        if bad and (row.get("status") == "submitted" or P_STATUS in bad or "properties" in bad):
+            problems[str(row.get("page_id"))] = [f"unexpected type in Notion propert{'y' if len(bad) == 1 else 'ies'}: "
+                                                 + ", ".join(bad) + "; row rejected"]
+            continue
         if row.get("status") != "submitted":
             continue
         pid = str(row.get("page_id"))
@@ -166,6 +196,8 @@ class UrllibNotionClient:
             if not out.get("has_more"):
                 return pages
             cursor = out.get("next_cursor")
+            if not isinstance(cursor, str) or not cursor:
+                raise ValueError("Notion reply says has_more but gives no next_cursor; refusing to repeat the query")
 
     def update_page(self, page_id: str, properties: Dict[str, Any]) -> None:
         self._call("PATCH", f"{API}/pages/{page_id}", {"properties": properties})
@@ -185,8 +217,10 @@ def sync(client: NotionClient, database_id: str, dest_dir: Any, provenance_dir: 
     parsed = [parse_row(p) for p in pages]
     entries, problems = rows_to_entries(parsed)
     report: Dict[str, Any] = {"rows": len(parsed), "rejected": problems, "datasets": {}}
+    real_ids = {p["page_id"] for p in parsed if isinstance(p.get("page_id"), str) and p["page_id"]}
+    # a rejection is written back only to a row that really has a page id (never to "None" or a made-up id)
     updates: List[Tuple[str, Dict[str, Any]]] = [
-        (pid, rejection_properties(issues)) for pid, issues in problems.items()]
+        (pid, rejection_properties(issues)) for pid, issues in problems.items() if pid in real_ids]
     prov_dir = Path(provenance_dir)
     for entry in entries:
         path = prov_dir / f"{entry['dataset_id']}.json"
