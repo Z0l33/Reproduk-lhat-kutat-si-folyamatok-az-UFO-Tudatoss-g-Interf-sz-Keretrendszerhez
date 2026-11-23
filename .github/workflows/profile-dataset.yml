@@ -2,6 +2,7 @@ name: profile-dataset
 
 # Manual. Downloads one dataset (verification as in `fetch`, first fetch may be unpinned),
 # then prints a structural profile (counts and ranges, no free text) to the job summary.
+# The reports/ file is the exact byte output of the QA step (compared by cmp in the reproducibility step).
 on:
   pull_request:
     paths: [".github/workflows/profile-dataset.yml"]   # lets the workflow be tried from a PR branch
