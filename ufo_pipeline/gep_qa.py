@@ -264,9 +264,21 @@ def geography_deep(land: List[str], bund: List[str], plz: List[str], plzu: List[
         "land_groups_of_filled_rows": dict(sorted(Counter(group[i] for i in u_idx).items())),
         "sichtungsort_filled_for_filled_rows": sum(1 for i in u_idx if ort[i]),
         "overlap_with_plz": sum(1 for i in u_idx if plz[i]),
-        "meaning_status": "UNVERIFIED: the name suggests an incomplete (truncated) postal code, but values "
-                          "with 4 or more digits and zero padding do not fit a 1-3 digit prefix reading. "
-                          "Consult the GEP documentation before any use of this field.",
+        "reading_bands": {
+            "facts": "length bands of digits-only values",
+            "1_to_3_digits": sum(1 for v in u_digits if len(v) <= 3),
+            "4_digits": sum(1 for v in u_digits if len(v) == 4),
+            "4_digits_in_land_with_4_digit_postcodes": sum(
+                1 for i in u_idx if plzu[i].isdigit() and len(plzu[i]) == 4
+                and land[i] in ("Österreich", "Schweiz", "Liechtenstein", "Luxemburg", "Belgien",
+                                "Dänemark", "Ungarn")),
+            "5_digits": sum(1 for v in u_digits if len(v) == 5),
+            "6_or_more_digits": sum(1 for v in u_digits if len(v) >= 6)},
+        "meaning_status": "UNVERIFIED. Heuristic reading: 1-3 digit values are compatible with a truncated "
+                          "postal code; 4 digit values are compatible with a truncated 5-digit German code "
+                          "but also with a complete 4-digit code of AT/CH and similar; 5 digit values look "
+                          "complete; values with 6 or more digits fit no postal format. The GEP "
+                          "documentation was not consulted. Do not use this field for analysis before that.",
     }
     # --- Bundesland
     out["Bundesland"] = {

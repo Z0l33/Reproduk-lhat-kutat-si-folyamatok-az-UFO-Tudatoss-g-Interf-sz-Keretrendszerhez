@@ -217,6 +217,10 @@ class GeographyDeep(unittest.TestCase):
                          {"close_parenthesis": 1, "open_parenthesis": 1})
         self.assertEqual(u["overlap_with_plz"], 1)
         self.assertIn("UNVERIFIED", u["meaning_status"])
+        b = u["reading_bands"]
+        self.assertEqual((b["1_to_3_digits"], b["4_digits"], b["5_digits"], b["6_or_more_digits"]),
+                         (3, 1, 0, 1))
+        self.assertEqual(b["4_digits_in_land_with_4_digit_postcodes"], 0)
         self.assertEqual(rep["summary"]["rule_counts"]["plz_unvollstaendig_4_or_more_digits"], 2)
 
     def test_small_cells_and_no_codes_in_report(self):
@@ -234,3 +238,10 @@ class GeographyDeep(unittest.TestCase):
         b = rep["geography_deep"]["Bundesland"]
         self.assertEqual((b["missing_for_germany"], b["filled_but_land_missing_or_placeholder"],
                           b["placeholder_values"]), (1, 1, 1))
+
+
+    def test_four_digit_value_in_swiss_row_is_separated(self):
+        rep = self.geo(dict(Land="Schweiz", PLZ="", PLZ_unvollstaendig="8000"),
+                       dict(Land="Deutschland", PLZ="", PLZ_unvollstaendig="8033"))
+        b = rep["geography_deep"]["PLZ_unvollstaendig"]["reading_bands"]
+        self.assertEqual((b["4_digits"], b["4_digits_in_land_with_4_digit_postcodes"]), (2, 1))

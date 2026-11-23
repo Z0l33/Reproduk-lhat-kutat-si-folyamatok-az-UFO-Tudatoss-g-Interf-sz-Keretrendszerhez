@@ -151,7 +151,8 @@
    "dates.Datum_precision",
    "dates.Datum_unparsable_breakdown",
    "classification.value_counts",
-   "summary.rule_counts for structural rules (missing_*, datum_*, plz_*, hendry_*)"
+   "geography_deep (counts, lengths, character kinds, group sizes)",
+   "summary.rule_counts for structural rules (missing_*, datum_*, plz_*, hendry_*, land_*)"
   ],
   "heuristic_hits": [
    "privacy_screen.*.rows_matching",
@@ -159,6 +160,8 @@
    "summary.rule_counts: sachverhalt_*, sichtungsort_*, duplicate_sachverhalt_text"
   ],
   "unverified_assumptions": [
+   "that the country-specific PLZ formats used for the consistency check (PLZ_DIGITS_BY_LAND) are the right expectation for every row of that country",
+   "that PLZ_unvollstaendig holds truncated postal codes (see geography_deep.PLZ_unvollstaendig)",
    "that a heuristic hit corresponds to a real personal identifier (not checked: no text is read)",
    "that PLZ_unvollstaendig and the Hynek/Hendry codes mean what their names suggest (GEP documentation not consulted)",
    "that the dataset is free of submitter personal data, as its description states",
@@ -298,6 +301,258 @@
   },
   "plz_and_plz_unvollstaendig_both_filled": 0
  },
+ "geography_deep": {
+  "Bundesland": {
+   "filled_but_land_missing_or_placeholder": 0,
+   "filled_by_land_group": {
+    "Deutschland": 5957,
+    "Schweiz": 133,
+    "other_country": 311,
+    "Österreich": 202
+   },
+   "missing_for_germany": 79,
+   "placeholder_values": 0
+  },
+  "Land": {
+   "groups": {
+    "Deutschland": 6036,
+    "Schweiz": 137,
+    "missing_or_placeholder": 17,
+    "other_country": 371,
+    "Österreich": 210
+   },
+   "non_country_marker": 2,
+   "placeholder_values": 11
+  },
+  "PLZ": {
+   "all_zero_values": 1,
+   "by_land_group": {
+    "Deutschland": {
+     "digits_only": 5568,
+     "filled": 5617,
+     "length_distribution": {
+      "4": 2,
+      "5": 5614,
+      "6": 1
+     }
+    },
+    "Schweiz": {
+     "digits_only": 126,
+     "filled": 127,
+     "length_distribution": {
+      "4": 122,
+      "5": 5
+     }
+    },
+    "missing_or_placeholder": {
+     "digits_only": 0,
+     "filled": 3,
+     "length_distribution": {
+      "5": 3
+     }
+    },
+    "other_country": {
+     "digits_only": 205,
+     "filled": 239,
+     "length_distribution": {
+      "10": 1,
+      "3": 3,
+      "4": 50,
+      "5": 155,
+      "6": 22,
+      "7": 3,
+      "8": 4,
+      "9": 1
+     }
+    },
+    "Österreich": {
+     "digits_only": 190,
+     "filled": 193,
+     "length_distribution": {
+      "4": 190,
+      "5": 3
+     }
+    }
+   },
+   "digits_only": 6089,
+   "expected_format_by_country": {
+    "Belgien": {
+     "expected_digits": 4,
+     "filled": 3,
+     "longer_or_non_digit": 0,
+     "not_expected_format": 0,
+     "shorter_all_digits": 0
+    },
+    "Deutschland": {
+     "expected_digits": 5,
+     "filled": 5617,
+     "longer_or_non_digit": 50,
+     "not_expected_format": 52,
+     "shorter_all_digits": 2
+    },
+    "Dänemark": {
+     "expected_digits": 4,
+     "filled": 8,
+     "longer_or_non_digit": 0,
+     "not_expected_format": 0,
+     "shorter_all_digits": 0
+    },
+    "Frankreich": {
+     "expected_digits": 5,
+     "filled": 16,
+     "longer_or_non_digit": 0,
+     "not_expected_format": 0,
+     "shorter_all_digits": 0
+    },
+    "Italien": {
+     "expected_digits": 5,
+     "filled": 43,
+     "longer_or_non_digit": 0,
+     "not_expected_format": 0,
+     "shorter_all_digits": 0
+    },
+    "Kroatien": {
+     "expected_digits": 5,
+     "filled": 16,
+     "longer_or_non_digit": 3,
+     "not_expected_format": 3,
+     "shorter_all_digits": 0
+    },
+    "Liechtenstein": {
+     "expected_digits": 4,
+     "filled": 1,
+     "longer_or_non_digit": 0,
+     "not_expected_format": 0,
+     "shorter_all_digits": 0
+    },
+    "Luxemburg": {
+     "expected_digits": 4,
+     "filled": 11,
+     "longer_or_non_digit": 0,
+     "not_expected_format": 0,
+     "shorter_all_digits": 0
+    },
+    "Schweiz": {
+     "expected_digits": 4,
+     "filled": 127,
+     "longer_or_non_digit": 5,
+     "not_expected_format": 5,
+     "shorter_all_digits": 0
+    },
+    "Spanien": {
+     "expected_digits": 5,
+     "filled": 48,
+     "longer_or_non_digit": 0,
+     "not_expected_format": 2,
+     "shorter_all_digits": 2
+    },
+    "Ungarn": {
+     "expected_digits": 4,
+     "filled": 1,
+     "longer_or_non_digit": 0,
+     "not_expected_format": 0,
+     "shorter_all_digits": 0
+    },
+    "Österreich": {
+     "expected_digits": 4,
+     "filled": 193,
+     "longer_or_non_digit": 5,
+     "not_expected_format": 5,
+     "shorter_all_digits": 0
+    }
+   },
+   "filled": 6179,
+   "filled_but_land_missing_or_placeholder": 3,
+   "germany_five_digit_starting_00": 0,
+   "leading_zero_preserved_count": 403,
+   "length_distribution": {
+    "10": 1,
+    "3": 3,
+    "4": 364,
+    "5": 5780,
+    "6": 23,
+    "7": 3,
+    "8": 4,
+    "9": 1
+   },
+   "non_digit_character_kinds_in_values": {
+    "letter": 10,
+    "letter_x": 61,
+    "other_symbol": 1,
+    "space": 28
+   },
+   "non_digit_value_shapes": {
+    "99 999": 4,
+    "999 99": 15,
+    "999AA": 16,
+    "999AAA": 1,
+    "99AAA": 11,
+    "9AAA": 2,
+    "9A{n}": 10,
+    "9{n} AA": 1,
+    "9{n}A": 6,
+    "A99 – A99": 1,
+    "A9A 9A9": 1,
+    "A9{n}": 1,
+    "AA 9{n}": 3,
+    "AA A9A 9A9": 1,
+    "A{n}": 15
+   },
+   "not_digits_only": 90,
+   "placeholder_values": 15,
+   "repeated_single_digit_values": 0,
+   "small_cells": {
+    "distinct_plz": 3614,
+    "rows_in_plz_with_exactly_1_row": 2192,
+    "rows_in_plz_with_fewer_than_3_rows": 3792,
+    "rows_in_plz_with_fewer_than_5_rows": 5413
+   }
+  },
+  "PLZ_unvollstaendig": {
+   "digits_only": 389,
+   "filled": 390,
+   "groups": {
+    "1_to_3_digits": 279,
+    "4_or_more_digits": 110,
+    "4_or_more_digits_by_length": {
+     "4": 95,
+     "5": 9,
+     "7": 5,
+     "8": 1
+    },
+    "6_or_more_digits": 6
+   },
+   "land_groups_of_filled_rows": {
+    "Deutschland": 335,
+    "Schweiz": 5,
+    "other_country": 42,
+    "Österreich": 8
+   },
+   "leading_zero_preserved_count": 13,
+   "length_distribution": {
+    "1": 57,
+    "2": 78,
+    "3": 144,
+    "4": 95,
+    "5": 9,
+    "7": 5,
+    "8": 2
+   },
+   "meaning_status": "UNVERIFIED: the name suggests an incomplete (truncated) postal code, but values with 4 or more digits and zero padding do not fit a 1-3 digit prefix reading. Consult the GEP documentation before any use of this field.",
+   "non_digit_character_kinds_in_values": {
+    "close_parenthesis": 1,
+    "open_parenthesis": 1,
+    "space": 1
+   },
+   "not_digits_only": 1,
+   "overlap_with_plz": 0,
+   "sichtungsort_filled_for_filled_rows": 390,
+   "values_ending_with_zero_padding": {
+    "ends_with_000": 1,
+    "ends_with_0000": 1
+   }
+  }
+ },
  "identifier": {
   "duplicated_values": 0,
   "format_patterns": {
@@ -387,17 +642,21 @@
    "Identifikations_Gruppe"
   ],
   "rows": 6771,
-  "rows_with_at_least_one_flag": 1905,
+  "rows_with_at_least_one_flag": 2015,
   "rule_counts": {
    "datum_before_1972": 14,
    "duplicate_sachverhalt_text": 30,
    "gemeldet_epoch_1970_01_01": 1,
    "hendry_S_unclear_meaning": 24,
    "hendry_case_variant": 1,
+   "land_not_a_country": 2,
+   "land_placeholder": 11,
    "missing_datum": 263,
    "missing_fallnummer": 1,
    "missing_land": 6,
+   "plz_format_unexpected_for_land": 67,
    "plz_nonnumeric_or_over_5_digits": 93,
+   "plz_unvollstaendig_4_or_more_digits": 110,
    "plz_zero": 1,
    "sachverhalt_age_phrase_unclassified": 57,
    "sachverhalt_direct_identifier_pattern": 4,
