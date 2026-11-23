@@ -694,6 +694,12 @@
     "rows_excluded_missing_component_or_reduced_date": 62,
     "rows_in_groups_smaller_than_5": 108,
     "share_in_groups_smaller_than_5_band": "75%+"
+   },
+   "L7_coarse_plz1_ageband_decade": {
+    "eligible_rows": 108,
+    "rows_excluded_missing_component_or_reduced_date": 62,
+    "rows_in_groups_smaller_than_5": 56,
+    "share_in_groups_smaller_than_5_band": "25-74%"
    }
   },
   "risk_indicator_bands": "share of eligible rows in groups smaller than 5: below 5% low, below 25% moderate, below 75% high, otherwise very_high. Thresholds are heuristic conventions, not legal or statistical standards.",
@@ -739,6 +745,13 @@
     "rows_excluded_missing_component_or_reduced_date": 237,
     "rows_in_groups_smaller_than_5": 1318,
     "share_in_groups_smaller_than_5": 1.0
+   },
+   "L7_coarse_plz1_ageband_decade": {
+    "eligible_rows": 1318,
+    "risk_indicator": "moderate",
+    "rows_excluded_missing_component_or_reduced_date": 237,
+    "rows_in_groups_smaller_than_5": 218,
+    "share_in_groups_smaller_than_5": 0.165
    }
   },
   "suppression": {
@@ -783,6 +796,13 @@
     "share_in_groups_smaller_than_5": 1.0
    },
    "L6_generalised_plz2_ageband_month": {
+    "eligible_rows": 26,
+    "risk_indicator": "very_high",
+    "rows_excluded_missing_component_or_reduced_date": 31,
+    "rows_in_groups_smaller_than_5": 26,
+    "share_in_groups_smaller_than_5": 1.0
+   },
+   "L7_coarse_plz1_ageband_decade": {
     "eligible_rows": 26,
     "risk_indicator": "very_high",
     "rows_excluded_missing_component_or_reduced_date": 31,
