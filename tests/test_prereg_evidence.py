@@ -124,7 +124,21 @@ def report(dataset_id, status, g, *, mode="confirmatory", synthetic=False, recor
     return {"dataset": {"dataset_id": dataset_id, "record_id": record, "synthetic": synthetic,
                         "file_sha256": {"f.csv": sha}},
             "preregistration": {"sha256": prereg_sha, "replicates_prereg_sha256": replicates},
-            "analysis": {"hedges_g": g}, "assessment": {"status": status, "mode": mode}}
+            "analysis": {"hedges_g": g}, "assessment": {"status": status, "mode": mode},
+            "data_access": {"mode": "explicit_allowlist"}}
+
+
+class ReplicationRequiresAccessControlledReports(unittest.TestCase):
+    def test_report_without_data_access_is_not_a_valid_replication(self):
+        orig = report("o", "awaiting_independent_replication", 0.8, record="r1", sha="a", prereg_sha="P1")
+        rep = report("r", "confirmatory_positive_unreplicated", 0.7, record="r2", sha="b", prereg_sha="P2",
+                     replicates="P1")
+        del rep["data_access"]
+        out = evaluate_replication(orig, rep)
+        self.assertEqual(out["outcome"], "invalid")
+        self.assertTrue(any("data_access" in r for r in out["reasons"]))
+        del orig["data_access"]
+        self.assertEqual(evaluate_replication(orig, rep)["outcome"], "invalid")
 
 
 class ReplicationTests(unittest.TestCase):

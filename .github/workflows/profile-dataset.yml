@@ -2,6 +2,7 @@ name: profile-dataset
 
 # Manual. Downloads one dataset (verification as in `fetch`, first fetch may be unpinned),
 # then prints a structural profile (counts and ranges, no free text) to the job summary.
+# The reports/ file is the exact byte output of the QA step (compared by cmp in the reproducibility step).
 on:
   pull_request:
     paths: [".github/workflows/profile-dataset.yml"]   # lets the workflow be tried from a PR branch
@@ -54,6 +55,34 @@ jobs:
             echo '```' >> "$GITHUB_STEP_SUMMARY"
           done
           test -s qa-report.json
+      - name: Reproducibility and integrity check (no data printed)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ds="${{ inputs.dataset || 'gep-ufo-uap-2026-10' }}"
+          f=$(ls "data/raw/$ds"/*.csv | head -1)
+          before=$(sha256sum "$f" | cut -d' ' -f1)
+          python -m ufo_pipeline gep-qa "$f" --out qa-1.json
+          python -m ufo_pipeline gep-qa "$f" --out qa-2.json
+          after=$(sha256sum "$f" | cut -d' ' -f1)
+          cmp qa-1.json qa-2.json && echo "two runs: byte-identical reports"
+          [ "$before" = "$after" ] && echo "CSV sha256 unchanged by the checks"
+          python - <<'PY'
+          import json
+          r = json.load(open("qa-1.json"))
+          assert r["input"]["unchanged_during_analysis"] is True
+          assert r["input"]["sha256"] == r["input"]["sha256_after"]
+          PY
+          report_sha=$(sha256sum qa-1.json | cut -d' ' -f1)
+          ref="reports/$ds.qa.json"
+          if [ -f "$ref" ]; then
+            if cmp -s qa-1.json "$ref"; then echo "report identical to committed $ref"; else echo "REPORT DIFFERS from committed $ref"; fi
+          fi
+          echo "csv_sha256=$before"
+          echo "report_sha256=$report_sha"
+          echo "commit=$GITHUB_SHA run_id=$GITHUB_RUN_ID attempt=$GITHUB_RUN_ATTEMPT"
+          echo "python=$(python --version 2>&1) numpy=$(python -c 'import numpy;print(numpy.__version__)')"
+          rm -f qa-1.json qa-2.json
       - uses: actions/upload-artifact@v4
         with:
           name: profile

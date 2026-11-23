@@ -1,7 +1,6 @@
 """Schema validation and data-leakage detection for tabular (CSV) datasets."""
 from __future__ import annotations
 
-import csv
 import math
 from datetime import datetime
 from pathlib import Path
@@ -12,13 +11,6 @@ import numpy as np
 PathLike = Union[str, Path]
 Row = Dict[str, str]
 MAX_LISTED = 10
-
-
-def load_csv(path: PathLike) -> Tuple[List[str], List[Row]]:
-    with open(path, newline="", encoding="utf-8") as handle:
-        reader = csv.DictReader(handle)
-        rows = [dict(r) for r in reader]
-        return list(reader.fieldnames or []), rows
 
 
 def _is_missing(value: Optional[str]) -> bool:
@@ -101,7 +93,8 @@ def detect_leakage(rows: Sequence[Row], *, group_column: str, outcome_column: st
                    id_column: Optional[str] = None, feature_columns: Sequence[str] = (),
                    split_column: Optional[str] = None, train_value: str = "train",
                    test_value: str = "test", time_column: Optional[str] = None,
-                   proxy_threshold: float = 0.99) -> Dict[str, Any]:
+                   proxy_threshold: float = 0.99,
+                   include_examples: bool = False) -> Dict[str, Any]:
     """Detect contamination that would invalidate an analysis.
 
     Checks: subject present in several groups; subject or exact row shared between train
@@ -116,8 +109,10 @@ def detect_leakage(rows: Sequence[Row], *, group_column: str, outcome_column: st
             groups_by_id.setdefault(row.get(id_column, ""), set()).add(row.get(group_column))
         shared = sorted(i for i, g in groups_by_id.items() if len(g) > 1)
         if shared:
-            findings.append({"type": "subject_in_multiple_groups", "count": len(shared),
-                             "examples": shared[:MAX_LISTED]})
+            finding = {"type": "subject_in_multiple_groups", "count": len(shared)}
+            if include_examples:  # identifiers only for synthetic data; real record ids stay out of reports
+                finding["examples"] = shared[:MAX_LISTED]
+            findings.append(finding)
 
     if split_column:
         train = [r for r in rows if r.get(split_column) == train_value]
@@ -125,8 +120,10 @@ def detect_leakage(rows: Sequence[Row], *, group_column: str, outcome_column: st
         if id_column:
             overlap = sorted({r.get(id_column) for r in train} & {r.get(id_column) for r in test})
             if overlap:
-                findings.append({"type": "subject_in_train_and_test", "count": len(overlap),
-                                 "examples": overlap[:MAX_LISTED]})
+                finding = {"type": "subject_in_train_and_test", "count": len(overlap)}
+                if include_examples:
+                    finding["examples"] = overlap[:MAX_LISTED]
+                findings.append(finding)
         cols = [c for c in list(feature_columns) + [outcome_column]]
         key = lambda r: tuple(r.get(c) for c in cols)  # noqa: E731
         dup = {key(r) for r in train} & {key(r) for r in test}

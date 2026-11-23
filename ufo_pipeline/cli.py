@@ -38,6 +38,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("profile", help="structural profile of a CSV (counts only, no free text)")
     p.add_argument("file")
+    p.add_argument("--base-dir", default=".", help="where policies/sensitive_columns.json lives")
 
     p = sub.add_parser("gep-qa", help="read-only data-quality and privacy screen (counts only)")
     p.add_argument("file")
@@ -90,8 +91,10 @@ def main(argv: Optional[List[str]] = None) -> int:
             return 0
         if args.command == "profile":
             import json
+            from .access import denied_name_matcher
             from .profile import profile_csv
-            print(json.dumps(profile_csv(args.file), indent=2, ensure_ascii=False))
+            report = profile_csv(args.file, denied_name_matcher(args.base_dir))
+            print(json.dumps(report, indent=2, ensure_ascii=False))
             return 0
         if args.command == "fetch":
             entries = load_manifest(args.manifest)

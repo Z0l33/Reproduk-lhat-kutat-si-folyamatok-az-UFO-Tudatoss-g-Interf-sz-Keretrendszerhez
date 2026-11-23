@@ -25,3 +25,24 @@ jobs:
         run: python -m ufo_pipeline validate-manifest --manifest data/manifest/datasets.json
       - name: Run tests
         run: python -m pytest -q
+      - name: Concurrent, shuffled runs must pass and leave the tree clean
+        shell: bash
+        run: |
+          set -u
+          git status --porcelain > before.txt
+          pids=()
+          for seed in 11 22 33 44; do
+            (UFO_TEST_SHUFFLE_SEED=$seed python -m pytest -q -p no:cacheprovider > "par_$seed.txt" 2>&1; echo $? > "par_$seed.rc") &
+            pids+=($!)
+          done
+          wait "${pids[@]}"
+          fail=0
+          for seed in 11 22 33 44; do
+            echo "seed $seed rc=$(cat par_$seed.rc): $(tail -1 par_$seed.txt)"
+            [ "$(cat par_$seed.rc)" = 0 ] || { fail=1; cat "par_$seed.txt"; }
+          done
+          rm -f par_*.txt par_*.rc
+          git status --porcelain | diff before.txt - || { echo "tests modified the working tree"; fail=1; }
+          rm -f before.txt
+          exit $fail
+

@@ -70,3 +70,22 @@ oszlop nem jut el a validációig, a szivárgás-ellenőrzésig vagy a statiszti
 rögzített, a konfiguráció nem írhatja felül. A szabályfájlban nem szereplő valódi adatkészletet a rendszer
 elutasítja. Nem fedi le: az *engedélyezett* oszlopok kombinációjából adódó újraazonosítást (lásd `reports/`),
 ezért az engedélylistát szűken kell megadni.
+
+## Adatelérési útvonalak és a garancia korlátai
+
+Az elemzési adat pontosan egy helyen olvasódik be, az `access.load_csv_allowlisted` függvényben, miután a
+`resolve_access` ellenőrizte a konfigurációt. A `pipeline.py`, `validation.py`, `stats.py` és `evidence.py`
+nem tartalmaz fájlolvasó kódot (ezt egy teszt a forráskód elemzésével ellenőrzi, és minden fájlolvasó modult
+nyilvántart). Két audit-eszköz szándékosan teljes fájlt olvas, és csak összesítést ad: a `profile` (a tiltott
+oszlopok értékeit elnyomja) és a `gep-qa`. Valódi adatkészlet rekordazonosítói nem kerülnek jelentésbe (a
+szivárgás-találatok csak darabszámot adnak, példák csak szintetikus adatnál). A replikációs jelentésnek
+tartalmaznia kell a `data_access` szekciót, így a hozzáférés-vezérelt folyamaton kívül készült jelentés nem
+számíthat replikációnak.
+
+Amit ez **nem** bizonyít: a tesztek azt mutatják, hogy a repóban meglévő útvonalakon és a tesztekben használt
+bemeneteken a tiltott oszlopokat az elemző réteg nem tölti be, és a vizsgált kimenetekben nincs kanári-érték.
+Azt nem tudják megmutatni, hogy a tesztek körén kívül semmi (másik folyamat, módosított kódmásolat, shell
+hozzáférés, hibakereső, gyorsítótár vagy swap) nem olvashatja az adatfájlt. A CSV maradjon a repón és a Notionön
+kívül, korlátozni kell, ki futtathatja rajta a folyamatot, a jelentések pedig csak összesített kimenetnek
+tekinthetők. A tesztek külön üres munkakönyvtárban futnak, a fixture-konstansokat módosítás ellen őrzi egy
+ellenőrzés, a CI pedig négy véletlen sorrendű tesztfolyamatot futtat egyszerre, és tiszta munkafát követel.

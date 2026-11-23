@@ -28,6 +28,14 @@ _PATH_KEYS = ("analysis_id", "dataset_provenance", "data_file", "preregistration
 _ACCESS_KEYS = {"allowed_columns"}
 
 
+# Built-in fallback so that tools which only DISPLAY values (profile) never list values of columns whose
+# names look sensitive, even when no policy file is present. The policy file adds to this, never replaces it.
+DEFAULT_DENIED_PATTERNS = (
+    r"(^|[_ -])(name|vorname|nachname|email|e-mail|phone|telefon|adresse|address|plz|zip|postal|postleit)([_ -]|$)",
+    r"(^|[_ -])(sachverhalt|narrative|freitext|free[_ -]?text|beschreibung|sichtungsort)([_ -]|$)",
+)
+
+
 class ColumnAccessError(ValueError):
     """A config tried to use a column the access policy does not permit. No data was read."""
 
@@ -203,3 +211,16 @@ def assert_only_allowed(columns: Sequence[str], rows: Sequence[Dict[str, Any]], 
         extra |= set(row) - set(allowed)
     if extra:
         raise ColumnAccessError(f"internal error: non-allowlisted column(s) in loaded data: {sorted(extra)}")
+
+
+def denied_name_matcher(base_dir: PathLike) -> Any:
+    """Conservative name matcher for display tools: a column counts as denied if ANY dataset in the policy
+    denies it, if a global pattern matches, or if a built-in default pattern matches."""
+    policy, _ = load_policy(base_dir)
+    exact: set = set()
+    patterns = [re.compile(p, re.I) for p in DEFAULT_DENIED_PATTERNS]
+    if policy:
+        patterns += [re.compile(p, re.I) for p in policy.get("global_denied_column_patterns", [])]
+        for entry in (policy.get("datasets") or {}).values():
+            exact |= {_canon(c) for c in entry.get("denied_columns", [])}
+    return lambda name: _canon(name) in exact or any(p.search(name) for p in patterns)

@@ -45,6 +45,25 @@ def write_policy(root, dataset_id, policy="auto"):
         target.write_text(json.dumps(policy), encoding="utf-8")
 
 
+def rewrite_column(paths, name, fn):
+    """Replace every value of an existing column with fn(old_value) and refresh the provenance hash."""
+    import csv
+    from ufo_pipeline.hashing import sha256_file
+    csv_path = Path(paths["csv"])
+    with open(csv_path, newline="", encoding="utf-8") as fh:
+        rows = list(csv.reader(fh))
+    idx = rows[0].index(name)
+    for r in rows[1:]:
+        r[idx] = fn(r[idx])
+    with open(csv_path, "w", newline="", encoding="utf-8") as fh:
+        csv.writer(fh).writerows(rows)
+    prov = load_json(paths["provenance"])
+    for f in prov["files"]:
+        if f["name"] == csv_path.name:
+            f["sha256"], f["size"] = sha256_file(csv_path), csv_path.stat().st_size
+    write_json(paths["provenance"], prov)
+
+
 def add_column(paths, name, value_fn):
     """Append a column to a synthetic CSV and refresh the recorded size and SHA-256 in its provenance."""
     import csv
