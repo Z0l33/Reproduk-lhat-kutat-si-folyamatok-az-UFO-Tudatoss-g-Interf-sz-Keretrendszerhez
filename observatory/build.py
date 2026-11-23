@@ -15,6 +15,15 @@ RULES = ["missing_datum", "missing_land", "plz_format_unexpected_for_land",
          "sachverhalt_person_age_strict"]
 
 
+def embed(data) -> str:
+    """JSON for a <script> block: no raw '<', '>', '&' or JS line separators can end the block or the string."""
+    text = json.dumps(data, ensure_ascii=False, sort_keys=True)
+    for ch, esc in (("<", "\\u003c"), (">", "\\u003e"), ("&", "\\u0026"),
+                    ("\u2028", "\\u2028"), ("\u2029", "\\u2029")):
+        text = text.replace(ch, esc)
+    return text
+
+
 def build() -> str:
     r = json.loads(REPORT.read_text(encoding="utf-8"))
     risk = r["reidentification_risk"]
@@ -30,7 +39,7 @@ def build() -> str:
     }
     assert sum(data["prec"].values()) == data["rows"]
     tpl = (Path(__file__).parent / "template.html").read_text(encoding="utf-8")
-    return tpl.replace("/*DATA*/null", json.dumps(data, ensure_ascii=False, sort_keys=True))
+    return tpl.replace("/*DATA*/null", embed(data))
 
 
 if __name__ == "__main__":

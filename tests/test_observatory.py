@@ -21,3 +21,17 @@ def test_no_live_status_claims_or_forbidden_content():
     assert re.search(r"2026-11-23", html) and "nem frissül automatikusan" in html
     assert "Sachverhalt\"" not in html.split("const D=")[1].split(";\nconst T=")[0].replace("sachverhalt_", "")
     assert "<script src=" not in html            # no external scripts
+
+
+def test_embedded_json_cannot_break_out_of_the_script_block():
+    import json
+    nasty = {"a": "</script><script>alert(1)</script> & <!--  "}
+    out = site_build.embed(nasty)
+    assert "<" not in out and ">" not in out and "&" not in out and " " not in out
+    assert json.loads(out) == nasty                       # escapes decode back to the same data
+
+
+def test_generated_page_has_no_raw_angle_bracket_in_data_block():
+    html = (OBS / "index.html").read_text(encoding="utf-8")
+    block = html.split("const D=")[1].split(";\nconst T=")[0]
+    assert "<" not in block and ">" not in block
