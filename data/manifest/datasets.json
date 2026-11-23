@@ -1,4 +1,18 @@
 {
   "schema_version": 1,
-  "datasets": []
+  "datasets": [
+    {
+      "dataset_id": "gep-ufo-uap-2026-10",
+      "record_id": "23906585",
+      "doi": "10.5281/zenodo.23906585",
+      "title": "UFO / UAP Falldaten 1972-2026.10 (GEP e.V.), version 2026.10",
+      "notes": "Record ID, DOI, version, file name and provider MD5 were read from the public Zenodo record page on 2026-11-23 and match the values recorded in the Notion data registry. No SHA-256 pin yet: fetch once, review the file, then pin. The reuse licence is NOT independently confirmed: an automated read of the record page reported CDLA-Permissive-1.0, while the Notion registry says no reusable licence is identified. Check the Rights section on the record page before any redistribution.",
+      "files": [
+        {
+          "name": "UFO-UAP-Falldaten_GEP_1972-2026.10.csv",
+          "zenodo_checksum": "md5:1d4c1f581acbd31ec3479d47ca64812a"
+        }
+      ]
+    }
+  ]
 }

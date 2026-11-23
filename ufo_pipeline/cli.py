@@ -24,6 +24,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--dest", default="data/raw")
     p.add_argument("--provenance-dir", default="provenance")
     p.add_argument("--dataset", help="only this dataset_id")
+    p.add_argument("--allow-unpinned", action="store_true",
+                   help="exit 0 for datasets that downloaded and passed the source checksum but have no "
+                        "SHA-256 pin yet (first fetch). Failed datasets still exit 1; unpinned is never verified.")
 
     p = sub.add_parser("analyze", help="run one analysis config")
     p.add_argument("--config", required=True)
@@ -66,7 +69,8 @@ def main(argv: Optional[List[str]] = None) -> int:
                 prov = retrieve_dataset(entry, Path(args.dest) / entry["dataset_id"], existing=existing)
                 write_json(prov_path, prov)
                 print(f"{entry['dataset_id']}: {prov['status']}")
-                failures += prov["status"] != "verified"
+                accepted = ("verified", "unpinned") if args.allow_unpinned else ("verified",)
+                failures += prov["status"] not in accepted
             return 1 if failures else 0
         if args.command == "analyze":
             report = run_analysis(load_json(args.config), base_dir=args.base_dir)
