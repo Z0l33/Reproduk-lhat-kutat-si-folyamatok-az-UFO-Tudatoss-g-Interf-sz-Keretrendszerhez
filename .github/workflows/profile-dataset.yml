@@ -1,0 +1,38 @@
+name: profile-dataset
+
+# Manual. Downloads one dataset (verification as in `fetch`, first fetch may be unpinned),
+# then prints a structural profile (counts and ranges, no free text) to the job summary.
+on:
+  workflow_dispatch:
+    inputs:
+      dataset:
+        description: "dataset_id from data/manifest/datasets.json"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  profile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: python -m ufo_pipeline fetch --dataset "${{ inputs.dataset }}" --allow-unpinned
+      - name: Profile every downloaded file
+        run: |
+          for f in data/raw/*.csv; do
+            echo "### $f" >> "$GITHUB_STEP_SUMMARY"
+            echo '```json' >> "$GITHUB_STEP_SUMMARY"
+            python -m ufo_pipeline profile "$f" | tee -a "$GITHUB_STEP_SUMMARY" profile.json
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: profile
+          path: |
+            profile.json
+            provenance/*.json

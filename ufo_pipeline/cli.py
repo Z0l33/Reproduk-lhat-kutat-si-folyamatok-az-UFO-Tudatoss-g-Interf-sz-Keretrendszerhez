@@ -35,6 +35,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--apply", action="store_true", help="write results back to Notion")
     p.add_argument("--run-url")
 
+    p = sub.add_parser("profile", help="structural profile of a CSV (counts only, no free text)")
+    p.add_argument("file")
+
     p = sub.add_parser("analyze", help="run one analysis config")
     p.add_argument("--config", required=True)
     p.add_argument("--out", default="results")
@@ -72,6 +75,11 @@ def main(argv: Optional[List[str]] = None) -> int:
                           run_url=args.run_url)
             print(json.dumps(report, indent=2, sort_keys=True))
             return 1 if report["rejected"] or "failed" in report["datasets"].values() else 0
+        if args.command == "profile":
+            import json
+            from .profile import profile_csv
+            print(json.dumps(profile_csv(args.file), indent=2, ensure_ascii=False))
+            return 0
         if args.command == "fetch":
             entries = load_manifest(args.manifest)
             if args.dataset:
