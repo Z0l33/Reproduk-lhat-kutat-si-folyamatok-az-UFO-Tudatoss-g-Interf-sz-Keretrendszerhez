@@ -3,11 +3,14 @@ name: profile-dataset
 # Manual. Downloads one dataset (verification as in `fetch`, first fetch may be unpinned),
 # then prints a structural profile (counts and ranges, no free text) to the job summary.
 on:
+  pull_request:
+    paths: [".github/workflows/profile-dataset.yml"]   # lets the workflow be tried from a PR branch
   workflow_dispatch:
     inputs:
       dataset:
         description: "dataset_id from data/manifest/datasets.json"
-        required: true
+        required: false
+        default: "gep-ufo-uap-2026-10"
 
 permissions:
   contents: read
@@ -21,7 +24,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
-      - run: python -m ufo_pipeline fetch --dataset "${{ inputs.dataset }}" --allow-unpinned
+      - run: python -m ufo_pipeline fetch --dataset "${{ inputs.dataset || 'gep-ufo-uap-2026-10' }}" --allow-unpinned
       - name: Profile every downloaded file
         run: |
           for f in data/raw/*.csv; do
