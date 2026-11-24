@@ -31,6 +31,13 @@ P_ID, P_RECORD, P_DOI, P_FILE = "Dataset ID", "Zenodo record ID", "Version DOI",
 P_CLAIM, P_PERSONAL, P_STATUS = "Claimed SHA-256", "Contains personal data", "Pipeline status"
 P_SHA, P_SIZE, P_SRC, P_AT = "Checked SHA-256", "Checked size (bytes)", "Source checksum", "Checked at"
 P_RUN, P_DECISION = "Pipeline run URL", "Maintainer decision"
+P_NOTES = "Pipeline notes"          # the ONLY free-text field the pipeline writes
+P_SUBMITTER_NOTE = "Source / note"  # submitter-owned: never written by the pipeline
+
+# Properties owned by the submitter or the maintainer. No payload built here may contain any of them.
+PROTECTED_FIELDS = frozenset({P_ID, P_RECORD, P_DOI, P_FILE, P_CLAIM, P_PERSONAL, P_SUBMITTER_NOTE, P_DECISION})
+# Properties the pipeline may write.
+PIPELINE_FIELDS = frozenset({P_STATUS, P_SHA, P_SIZE, P_SRC, P_AT, P_RUN, P_NOTES})
 
 
 def _text(prop: Any) -> str:
@@ -235,14 +242,14 @@ def properties_from_provenance(prov: Dict[str, Any], file_name: str, run_url: Op
     errors = list(prov.get("errors") or []) + [e for f in prov.get("files", [])
                                                 if f.get("name") == file_name for e in f.get("errors", [])]
     if errors:
-        props["Source / note"] = _rich("; ".join(errors))
+        props[P_NOTES] = _rich("; ".join(errors))
     if run_url:
         props[P_RUN] = {"url": run_url}
     return props
 
 
 def rejection_properties(issues: List[str]) -> Dict[str, Any]:
-    return {P_STATUS: {"select": {"name": "failed"}}, "Source / note": _rich("; ".join(issues))}
+    return {P_STATUS: {"select": {"name": "failed"}}, P_NOTES: _rich("; ".join(issues))}
 
 
 class NotionClient(Protocol):
@@ -341,5 +348,8 @@ def sync(client: NotionClient, database_id: str, dest_dir: Any, provenance_dir: 
     report["updates"] = len(updates)
     report["applied"] = True
     for pid, props in updates:
+        foreign = set(props) - PIPELINE_FIELDS
+        if foreign:   # defence in depth: never touch submitter-owned or unknown properties
+            raise ValueError(f"refusing to write non-pipeline Notion properties: {sorted(foreign)}")
         client.update_page(pid, props)
     return report

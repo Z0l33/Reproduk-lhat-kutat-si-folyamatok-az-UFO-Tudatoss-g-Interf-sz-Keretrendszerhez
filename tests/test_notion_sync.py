@@ -104,7 +104,7 @@ class ResultProperties(unittest.TestCase):
         p = self.prov("failed")
         p["files"][0]["errors"] = ["pinned_sha256_mismatch"]
         self.assertIn("pinned_sha256_mismatch",
-                      ns.properties_from_provenance(p, "d.csv")["Source / note"]["rich_text"][0]["text"]["content"])
+                      ns.properties_from_provenance(p, "d.csv")[ns.P_NOTES]["rich_text"][0]["text"]["content"])
 
 
 if __name__ == "__main__":
@@ -176,3 +176,77 @@ class SyncFlow(unittest.TestCase):
         updated = dict(client.updated)
         self.assertEqual(updated["p1"][ns.P_STATUS]["select"]["name"], "unpinned")
         self.assertEqual(updated["p2"][ns.P_STATUS]["select"]["name"], "failed")
+
+
+class SubmitterFieldsAreNeverWritten(unittest.TestCase):
+    """Audit finding K3: the submitter's 'Source / note' was overwritten by pipeline errors."""
+
+    def test_payload_builders_write_only_pipeline_fields(self):
+        prov_ok = {"status": "unpinned", "retrieved_at": "t", "errors": [],
+                   "files": [{"name": "d.csv", "status": "unpinned", "sha256": SHA, "size": 1,
+                              "api_checksum_verified": True, "errors": []}]}
+        prov_bad = {"status": "failed", "retrieved_at": "t", "errors": ["record_fetch_failed: x"], "files": []}
+        payloads = [ns.properties_from_provenance(prov_ok, "d.csv", "https://run"),
+                    ns.properties_from_provenance(prov_bad, "d.csv", "https://run"),
+                    ns.rejection_properties(["row is flagged as containing personal data; rejected"])]
+        for props in payloads:
+            self.assertEqual(set(props) & ns.PROTECTED_FIELDS, set())
+            self.assertLessEqual(set(props), ns.PIPELINE_FIELDS)
+        self.assertIn(ns.P_NOTES, payloads[1])
+        self.assertIn(ns.P_NOTES, payloads[2])
+
+    def test_apply_keeps_the_submitter_note_for_rejected_failed_and_clean_rows(self):
+        import tempfile
+
+        def with_note(p):
+            p["properties"][ns.P_SUBMITTER_NOTE] = {"rich_text": [{"plain_text": "Submitter note: source X"}]}
+            return p
+
+        class Client:
+            def __init__(self, pages):
+                self.pages, self.updated = pages, {}
+
+            def query_submitted(self, database_id):
+                return self.pages
+
+            def update_page(self, page_id, properties):
+                self.updated[page_id] = properties
+
+        def retriever(entry, dest, existing=None):
+            ok = entry["dataset_id"] == "clean"
+            return {"status": "unpinned" if ok else "failed", "retrieved_at": "t", "errors": [],
+                    "files": [{"name": "d.csv", "status": "unpinned" if ok else "failed", "sha256": None, "size": 1,
+                               "api_checksum_verified": ok, "errors": [] if ok else ["source_checksum_mismatch"]}]}
+
+        client = Client([with_note(page("rejected", ds="r", rec="101", doi="10.5281/zenodo.101", personal=True)),
+                         with_note(page("failed", ds="f", rec="102", doi="10.5281/zenodo.102")),
+                         with_note(page("clean", ds="clean", rec="103", doi="10.5281/zenodo.103"))])
+        with tempfile.TemporaryDirectory() as d:
+            ns.sync(client, "db", d, d, retriever, apply=True, blocked={})
+        self.assertEqual(set(client.updated), {"rejected", "failed", "clean"})
+        for pid, props in client.updated.items():
+            self.assertNotIn(ns.P_SUBMITTER_NOTE, props, pid)
+            self.assertLessEqual(set(props), ns.PIPELINE_FIELDS, pid)
+        self.assertIn("personal data", client.updated["rejected"][ns.P_NOTES]["rich_text"][0]["text"]["content"])
+        self.assertIn("source_checksum_mismatch", client.updated["failed"][ns.P_NOTES]["rich_text"][0]["text"]["content"])
+
+    def test_the_write_guard_refuses_foreign_properties(self):
+        import tempfile
+
+        class Client:
+            updated = []
+
+            def query_submitted(self, database_id):
+                return [page("p1", personal=True)]
+
+            def update_page(self, page_id, properties):
+                self.updated.append(page_id)
+
+        original = ns.rejection_properties
+        try:
+            ns.rejection_properties = lambda issues: {ns.P_SUBMITTER_NOTE: ns._rich("x")}
+            with tempfile.TemporaryDirectory() as d, self.assertRaises(ValueError):
+                ns.sync(Client(), "db", d, d, lambda *a, **k: None, apply=True, blocked={})
+        finally:
+            ns.rejection_properties = original
+        self.assertEqual(Client.updated, [])
