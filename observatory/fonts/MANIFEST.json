@@ -1,0 +1,58 @@
+{
+  "fonttools_version": "4.67.0",
+  "outputs": {
+    "Inter-Bold.woff": {
+      "from": "Inter-Bold.otf",
+      "sha256": "6898bbb8880f215650af5cc0ec1c965ce5a4f4fe3c7c4e181f03f80f84ce260e"
+    },
+    "Inter-Medium.woff": {
+      "from": "Inter-Medium.otf",
+      "sha256": "89836bb6431171745592d7045b511749b9d4b280e758aacb1f46612d6489e123"
+    },
+    "Inter-Regular.woff": {
+      "from": "Inter-Regular.otf",
+      "sha256": "e78131706f4b34c082612d8cef16b4022743f047b72a1f2365855c509702c4ea"
+    },
+    "Inter-SemiBold.woff": {
+      "from": "Inter-SemiBold.otf",
+      "sha256": "3b4760860fa8fe1b66c7e2071a6f3580aa024b2d9380634b0cddc3d42833e39a"
+    },
+    "JetBrainsMono-Regular.woff": {
+      "from": "JetBrainsMono-Regular.ttf",
+      "sha256": "81a540a5961c0a3187a0c020f73897340ea8bb8687b32e7b8aa7d4b54ab1f773"
+    }
+  },
+  "sources": {
+    "Inter-Bold.otf": {
+      "acquired_from": "Debian package fonts-inter 4.0+ds-1 (files in /usr/share/fonts/opentype/inter)",
+      "sha256": "00fd6f4691ee8884a33b46bf45851b341927c37c30064f558e1befb242971c49",
+      "upstream": "https://github.com/rsms/inter",
+      "version": "Version 4.000;git-a52131595"
+    },
+    "Inter-Medium.otf": {
+      "acquired_from": "Debian package fonts-inter 4.0+ds-1 (files in /usr/share/fonts/opentype/inter)",
+      "sha256": "1e65171fccd6f445b7742728454620ec2867356c849af78e71bf2c4f0e3d97ba",
+      "upstream": "https://github.com/rsms/inter",
+      "version": "Version 4.000;git-a52131595"
+    },
+    "Inter-Regular.otf": {
+      "acquired_from": "Debian package fonts-inter 4.0+ds-1 (files in /usr/share/fonts/opentype/inter)",
+      "sha256": "be6d709dcb730ddaf050cbdae6fe89bd56d5d14dc66885639bbf6f06bd03521b",
+      "upstream": "https://github.com/rsms/inter",
+      "version": "Version 4.000;git-a52131595"
+    },
+    "Inter-SemiBold.otf": {
+      "acquired_from": "Debian package fonts-inter 4.0+ds-1 (files in /usr/share/fonts/opentype/inter)",
+      "sha256": "bd68706b7bf8b3c580ae57685a2116bb1704b3a9998309ccfec7cd486f8a593e",
+      "upstream": "https://github.com/rsms/inter",
+      "version": "Version 4.000;git-a52131595"
+    },
+    "JetBrainsMono-Regular.ttf": {
+      "acquired_from": "copy bundled with the build environment (canvas-design example fonts); the exact upstream release asset was not verified",
+      "sha256": "b6b1ff4ddefe36d7f2a6174e1d001cab374e594519ee9049af028d577b64c5f5",
+      "upstream": "https://github.com/JetBrains/JetBrainsMono",
+      "version": "Version 2.211"
+    }
+  },
+  "subset": "see make_fonts.py docstring"
+}
