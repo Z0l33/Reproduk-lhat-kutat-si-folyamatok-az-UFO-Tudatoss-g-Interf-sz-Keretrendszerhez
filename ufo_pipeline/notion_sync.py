@@ -106,6 +106,17 @@ def parse_row(page: Dict[str, Any]) -> Dict[str, Any]:
     return row
 
 
+def canonical_record_id(value: Any) -> str:
+    """One spelling per record: ASCII digits with leading zeros removed ('023906585' -> '23906585').
+
+    Anything that is not plain ASCII digits is returned unchanged (it fails validation later anyway).
+    """
+    text = str(value).strip()
+    if text.isascii() and text.isdigit():
+        return str(int(text))
+    return text
+
+
 def blocked_targets(manifest_entries: List[Dict[str, Any]]) -> Dict[Tuple[str, str], str]:
     """(kind, value) -> reason for every manifest entry with retrieval_blocked=true.
 
@@ -115,14 +126,22 @@ def blocked_targets(manifest_entries: List[Dict[str, Any]]) -> Dict[Tuple[str, s
     for entry in manifest_entries:
         if entry.get("retrieval_blocked") is True:
             reason = str(entry.get("retrieval_blocked_reason", "")).strip() or "blocked in manifest"
-            blocked[("record", str(entry.get("record_id")))] = reason
+            blocked[("record", canonical_record_id(entry.get("record_id")))] = reason
             blocked[("dataset", str(entry.get("dataset_id")))] = reason
     return blocked
 
 
-def load_blocked_targets(manifest_path: Any = None) -> Dict[Tuple[str, str], str]:
-    """Blocks from the repository manifest. Raises if the manifest is missing or invalid (fail closed)."""
-    return blocked_targets(load_manifest(manifest_path or DEFAULT_MANIFEST))
+def load_blocked_targets(extra_manifest: Any = None) -> Dict[Tuple[str, str], str]:
+    """Blocks from the repository manifest, plus those of an optional extra manifest.
+
+    The repository's own manifest is ALWAYS read: an extra manifest can add blocks, never remove
+    them. Raises if either manifest is missing or invalid (fail closed).
+    """
+    blocked = blocked_targets(load_manifest(DEFAULT_MANIFEST))
+    if extra_manifest:
+        for key, reason in blocked_targets(load_manifest(extra_manifest)).items():
+            blocked.setdefault(key, reason)
+    return blocked
 
 
 def rows_to_entries(rows: List[Dict[str, Any]], blocked: Optional[Dict[Tuple[str, str], str]] = None
@@ -153,7 +172,8 @@ def rows_to_entries(rows: List[Dict[str, Any]], blocked: Optional[Dict[Tuple[str
         issues: List[str] = []
         if row.get("personal_data"):
             issues.append("row is flagged as containing personal data; rejected")
-        for kind, value in (("record", row["record_id"]), ("dataset", row["dataset_id"])):
+        for kind, value in (("record", canonical_record_id(row["record_id"])),
+                            ("dataset", row["dataset_id"].strip().lower())):
             reason = (blocked or {}).get((kind, value))
             if reason:
                 issues.append(f"retrieval_blocked ({kind} {value} is blocked in the repository manifest: "

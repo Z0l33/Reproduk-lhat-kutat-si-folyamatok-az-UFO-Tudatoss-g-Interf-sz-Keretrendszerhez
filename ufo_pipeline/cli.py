@@ -35,7 +35,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--provenance-dir", default="provenance")
     p.add_argument("--apply", action="store_true", help="write results back to Notion")
     p.add_argument("--manifest", default=None,
-                   help="repository manifest whose retrieval blocks are honoured (default: the repo's own)")
+                   help="extra manifest whose retrieval blocks are ADDED; the repository's own blocks always apply")
     p.add_argument("--run-url")
 
     p = sub.add_parser("profile", help="structural profile of a CSV (counts only, no free text)")
