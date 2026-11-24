@@ -13,6 +13,21 @@
           "zenodo_checksum": "md5:1d4c1f581acbd31ec3479d47ca64812a"
         }
       ]
+    },
+    {
+      "dataset_id": "sddb-dreams-2025-12-28",
+      "domain": "DREAMS",
+      "record_id": "18076716",
+      "doi": "10.5281/zenodo.18076716",
+      "title": "Sleep and Dream Database (SDDb), Zenodo snapshot 2025-12-28, version 2",
+      "notes": "Record ID, DOI, version, file name and provider MD5 match the Notion Data Registry row and the public Zenodo record page (read 2026-11-24 with an automated page fetch). The SHA-256 pin is the value recorded in the Notion Data Registry for the original CSV, computed locally on a user-supplied copy whose MD5 matched the provider MD5; it has not yet been reproduced by this pipeline's fetch, so the first manual verify-datasets run must confirm it (a mismatch fails the run). Licence: the record page's Rights section lists 'Creative Commons Attribution 4.0 International' (cc-by-4.0), but the Notion registry records the licence as Unverified and says the Rights section has no explicit licence; no person has confirmed it yet. Individual reports may come from sub-collections with their own, possibly stricter terms (e.g. DreamBank, CC BY-NC-SA 4.0); check before any redistribution. Aggregate structure recorded in Notion for the original CSV (local QA, not a pipeline run): 44,556 rows; 42,989 non-empty dream texts; 1,567 empty; 15,880 distinct non-empty participant IDs; 85 survey names; 0 duplicate Dream Report IDs. Never commit dream narratives, participant IDs or source keys; reports must stay aggregate-only. Keep report-level dream data separate from study-level Ganzfeld outcomes. A cleaned 14-column derivative (SHA-256 41bac0b6d4a5f1b2a889e4d0a9f1c8459acbe1e1df2ee8e7e0d1dc4644031779) is a separate local artifact, not a Zenodo file, and is not listed here.",
+      "files": [
+        {
+          "name": "dream_search_2025-12-28T15_50_30.592Z.csv",
+          "sha256": "74b8e62620e8164f64168ecdaf4a61bc8ae9a3bef6d98bea61dee1390e7d5b16",
+          "zenodo_checksum": "md5:4ecfb8cd2a83eabe75d2b6537ca846b6"
+        }
+      ]
     }
   ]
 }
