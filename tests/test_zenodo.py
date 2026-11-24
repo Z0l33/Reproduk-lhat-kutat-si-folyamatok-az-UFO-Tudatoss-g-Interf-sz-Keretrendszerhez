@@ -323,3 +323,88 @@ class DownloadSizeLimitTests(unittest.TestCase):
         for bad in (0, -5, True, "100", 1.5):
             self.assertTrue(any("max_download_bytes" in p for p in validate_entry(entry(max_download_bytes=bad))), bad)
         self.assertEqual(validate_entry(entry(max_download_bytes=10)), [])
+
+
+class DeclaredSizeCasesTests(unittest.TestCase):
+    """Audit review of #17: missing, invalid, under- and over-estimated sizes; counting ignores headers."""
+
+    URL = "https://zenodo.org/api/records/0/files/data.csv/content"
+
+    def setUp(self):
+        self.dest = Path(tempfile.mkdtemp())
+
+    def rec(self, size):
+        return record(files=[{"key": "data.csv", "size": size, "checksum": MD5, "links": {"self": self.URL}}])
+
+    def test_exact_declared_size_is_accepted(self):
+        prov = retrieve_dataset(entry(), self.dest, FakeClient(self.rec(len(CONTENT))))
+        self.assertEqual(prov["status"], "verified")
+        self.assertEqual(prov["files"][0]["size"], len(CONTENT))
+
+    def test_underestimated_size_aborts_during_download(self):
+        # declared 3 bytes too few: the stream is cut at the declared size, nothing is kept
+        prov = retrieve_dataset(entry(), self.dest, FakeClient(self.rec(len(CONTENT) - 3)))
+        self.assertEqual(prov["status"], "failed")
+        self.assertTrue(prov["files"][0]["errors"][0].startswith("download_failed"))
+        self.assertEqual(list(self.dest.rglob("*")), [])
+
+    def test_overestimated_size_fails_after_download_and_keeps_nothing(self):
+        # declared 5 bytes too many: the full (shorter) file arrives, the real byte count differs -> rejected
+        prov = retrieve_dataset(entry(), self.dest, FakeClient(self.rec(len(CONTENT) + 5)))
+        f = prov["files"][0]
+        self.assertEqual(prov["status"], "failed")
+        self.assertEqual(f["size"], len(CONTENT))                       # the measured size, not the declared one
+        self.assertIn(f"size_mismatch: API {len(CONTENT) + 5} vs downloaded {len(CONTENT)}", f["errors"])
+        self.assertEqual(list(self.dest.rglob("*")), [])
+
+    def test_missing_and_invalid_sizes_never_start_a_download(self):
+        for bad in (None, "", "n/a", "-1", -1, True, False, 1.0, "1e3", " 12", "١٢"):  # last: Arabic-Indic digits
+            client = FakeClient(self.rec(bad))
+            prov = retrieve_dataset(entry(), self.dest, client)
+            self.assertEqual(client.downloads, [], repr(bad))
+            self.assertTrue(prov["files"][0]["errors"][0].startswith("size_unknown"), repr(bad))
+        self.assertEqual(list(self.dest.rglob("*")), [])
+
+    def _urllib_download(self, body, headers, max_bytes):
+        import io
+        from unittest import mock
+        from ufo_pipeline.zenodo import UrllibClient
+
+        class Response(io.BytesIO):
+            def __init__(self, data, hdrs):
+                super().__init__(data)
+                self.headers = hdrs
+
+            def getheader(self, name, default=None):
+                return self.headers.get(name, default)
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        dest = self.dest / "f.part"
+        with mock.patch("urllib.request.urlopen", return_value=Response(body, headers)):
+            UrllibClient().download("https://zenodo.org/x", dest, max_bytes=max_bytes)
+        return dest.stat().st_size
+
+    def test_byte_counting_ignores_a_content_length_that_claims_too_little(self):
+        # header says 1 byte, 5 MB arrive, cap 10 -> aborted on the real count, not trusted header
+        with self.assertRaises(DownloadTooLarge):
+            self._urllib_download(b"x" * (5 * 1024 * 1024), {"Content-Length": "1"}, max_bytes=10)
+        self.assertLessEqual((self.dest / "f.part").stat().st_size, 10)
+
+    def test_byte_counting_ignores_a_content_length_that_claims_too_much(self):
+        # header claims ~1 GB, 20 bytes arrive, cap 20 -> exactly the 20 real bytes are written, no error
+        self.assertEqual(self._urllib_download(b"y" * 20, {"Content-Length": str(10 ** 9)}, max_bytes=20), 20)
+
+    def test_byte_counting_works_without_any_content_length(self):
+        self.assertEqual(self._urllib_download(b"z" * 7, {}, max_bytes=7), 7)
+        with self.assertRaises(DownloadTooLarge):
+            self._urllib_download(b"z" * 8, {}, max_bytes=7)
+
+    def test_client_code_never_reads_content_length(self):
+        source = (Path(__file__).resolve().parent.parent / "ufo_pipeline" / "zenodo.py").read_text(encoding="utf-8")
+        self.assertNotIn("content-length", source.lower())
+        self.assertNotIn("getheader", source)
