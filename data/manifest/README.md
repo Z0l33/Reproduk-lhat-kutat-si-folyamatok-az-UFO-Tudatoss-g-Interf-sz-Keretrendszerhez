@@ -17,6 +17,10 @@ for a blocked entry; the run fails with `retrieval_blocked`. Remove the flag onl
 documented, human rights decision, in its own reviewed PR. A test fails if either flag is removed.
 Mindkét tétel letöltése blokkolva van (`retrieval_blocked`) a jogtisztázásig.
 
+Download size limit: a file is downloaded only if Zenodo declares a valid size, and that size is at
+most 100 MB (`DEFAULT_MAX_DOWNLOAD_BYTES`) or the entry's own `"max_download_bytes"` (a positive integer).
+The stream is aborted as soon as it exceeds the declared size, so nothing larger reaches the disk.
+
 Listing a record here does not clear its reuse rights. Raw files stay out of the repository
 (`data/raw/` is git-ignored); reports hold aggregate counts only.
 A nyilvántartásba vétel nem jelent jogtisztázást; nyers fájl nem kerül a repóba.
