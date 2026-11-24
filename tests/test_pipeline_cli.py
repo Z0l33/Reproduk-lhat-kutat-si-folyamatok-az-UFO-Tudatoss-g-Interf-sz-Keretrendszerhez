@@ -184,6 +184,27 @@ class CliTests(unittest.TestCase):
         empty.write_text(json.dumps({"schema_version": 1, "datasets": []}))
         self.assertEqual(main(["fetch", "--manifest", str(empty)]), 0)
 
+    def test_fetch_of_repository_manifest_is_blocked_without_network(self):
+        # The exact command verify-datasets runs must download nothing while rights are open.
+        from unittest import mock
+
+        class NoNetwork:
+            def __init__(self, *a, **k):
+                raise AssertionError("network client must not be created for blocked entries")
+
+        repo = Path(__file__).resolve().parent.parent
+        tmp = Path(tempfile.mkdtemp())
+        with mock.patch("ufo_pipeline.zenodo.UrllibClient", NoNetwork):
+            rc = main(["fetch", "--manifest", str(repo / "data" / "manifest" / "datasets.json"),
+                       "--allow-unpinned", "--dest", str(tmp / "raw"),
+                       "--provenance-dir", str(tmp / "prov")])
+        self.assertEqual(rc, 1)
+        self.assertFalse((tmp / "raw").exists())
+        for name in ("gep-ufo-uap-2026-10", "sddb-dreams-2025-12-28"):
+            prov = load_json(tmp / "prov" / f"{name}.json")
+            self.assertEqual(prov["status"], "failed")
+            self.assertTrue(prov["errors"][0].startswith("retrieval_blocked:"))
+
     def test_bad_manifest_returns_error(self):
         tmp = Path(tempfile.mkdtemp()) / "m.json"
         tmp.write_text(json.dumps({"schema_version": 1, "datasets": [{"dataset_id": "x"}]}))
