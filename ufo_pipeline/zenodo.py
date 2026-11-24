@@ -127,6 +127,62 @@ def _file_index(record: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     return index
 
 
+def _fetch_record(entry: Dict[str, Any], client: HttpClient
+                  ) -> "tuple[Optional[Dict[str, Any]], List[str], Dict[str, Any]]":
+    """Fetch the record metadata (JSON only, never a file) and check record id and version DOI."""
+    record_id = str(entry.get("record_id"))
+    try:
+        record = client.get_json(API_ROOT + record_id)
+    except Exception as exc:  # network / HTTP / JSON errors
+        return None, [f"record_fetch_failed: {exc}"], {}
+    errors: List[str] = []
+    if str(record.get("id")) != record_id:
+        errors.append(f"record_id_mismatch: API returned {record.get('id')!r}")
+    api_doi = record.get("doi")
+    if api_doi != entry["doi"]:
+        if record.get("conceptdoi") == entry["doi"]:
+            errors.append("doi_is_concept_doi: pin the version DOI of this exact record "
+                          "(a concept DOI resolves to the latest version)")
+        else:
+            errors.append(f"doi_mismatch: manifest {entry['doi']!r} vs API {api_doi!r}")
+    meta = record.get("metadata") or {}
+    record_metadata = {k: meta.get(k) for k in ("title", "version", "publication_date")
+                       if meta.get(k) is not None}
+    return record, errors, record_metadata
+
+
+def check_record_metadata(entry: Dict[str, Any], client: Optional[HttpClient] = None) -> Dict[str, Any]:
+    """Metadata-only check of one entry: record id, version DOI and the listed files.
+
+    Never downloads a file and never writes anything. A blocked or invalid entry is not
+    contacted at all. Status is 'metadata_ok' or 'failed'; 'metadata_ok' says only that the
+    Zenodo record lists the named files. It is NOT a file verification.
+    """
+    result: Dict[str, Any] = {"dataset_id": entry.get("dataset_id"), "record_id": str(entry.get("record_id")),
+                              "downloaded": False, "status": "failed", "errors": [], "files": []}
+    problems = validate_entry(entry)
+    if problems:
+        result["errors"] = [f"invalid_manifest_entry: {p}" for p in problems]
+        return result
+    if entry.get("retrieval_blocked"):
+        result["errors"] = [f"retrieval_blocked: {entry['retrieval_blocked_reason']}"]
+        return result
+    record, errors, _ = _fetch_record(entry, client or UrllibClient())
+    result["errors"].extend(errors)
+    if record is not None and not errors:
+        index = _file_index(record)
+        for spec in entry["files"]:
+            meta = index.get(spec["name"])
+            item = {"name": spec["name"], "listed": meta is not None,
+                    "size": (meta or {}).get("size"), "api_checksum": (meta or {}).get("checksum")}
+            if meta is None:
+                result["errors"].append(f"file_not_in_record: {spec['name']}")
+            result["files"].append(item)
+    if not result["errors"]:
+        result["status"] = "metadata_ok"
+    return result
+
+
 def retrieve_dataset(entry: Dict[str, Any], dest_dir: PathLike, client: Optional[HttpClient] = None,
                      *, existing: Optional[Dict[str, Any]] = None,
                      now: Optional[str] = None) -> Dict[str, Any]:
@@ -166,24 +222,8 @@ def retrieve_dataset(entry: Dict[str, Any], dest_dir: PathLike, client: Optional
         return prov
     client = client or UrllibClient()
 
-    try:
-        record = client.get_json(prov["api_url"])
-    except Exception as exc:  # network / HTTP / JSON errors
-        prov["errors"].append(f"record_fetch_failed: {exc}")
-        return prov
-
-    if str(record.get("id")) != prov["record_id"]:
-        prov["errors"].append(f"record_id_mismatch: API returned {record.get('id')!r}")
-    api_doi = record.get("doi")
-    if api_doi != entry["doi"]:
-        if record.get("conceptdoi") == entry["doi"]:
-            prov["errors"].append("doi_is_concept_doi: pin the version DOI of this exact record "
-                                  "(a concept DOI resolves to the latest version)")
-        else:
-            prov["errors"].append(f"doi_mismatch: manifest {entry['doi']!r} vs API {api_doi!r}")
-    meta = record.get("metadata") or {}
-    prov["record_metadata"] = {k: meta.get(k) for k in ("title", "version", "publication_date")
-                               if meta.get(k) is not None}
+    record, errors, prov["record_metadata"] = _fetch_record(entry, client)
+    prov["errors"].extend(errors)
     if prov["errors"]:
         return prov
 

@@ -368,3 +368,101 @@ def test_identified_rows_keep_their_page_id_keys_and_processing():
     entries, problems = ns.rows_to_entries([ns.parse_row(p) for p in pages])
     assert [e["dataset_id"] for e in entries] == ["one"] and list(problems) == ["p2"]
     assert ns.row_keys([ns.parse_row(p) for p in pages]) == ["p1", "p2"]
+
+
+# ---- retrieval blocks from the repository manifest (audit finding M1) ----
+@pytest.mark.parametrize("extra", [(), ("--apply",)])
+@pytest.mark.parametrize("rec_id, ds", [("23906585", "any-name"), ("18076716", "x"), ("999", "gep-ufo-uap-2026-10")])
+def test_cli_rejects_rows_for_manifest_blocked_records_without_any_zenodo_call(monkeypatch, capsys, extra, rec_id, ds):
+    row = page("p1", ds=ds, rec=rec_id, doi=f"10.5281/zenodo.{rec_id}", name="f.csv")
+    calls = []
+
+    def urlopen(req, timeout=None):
+        url = req.full_url
+        calls.append((req.get_method(), url))
+        if "zenodo.org" in url:
+            raise AssertionError("a blocked row must never reach Zenodo")
+        if url.endswith("/query"):
+            return ok({"results": [row], "has_more": False})
+        return ok({})                                   # PATCH of the rejection (apply only)
+
+    code, out, err = run_cli(monkeypatch, urlopen, capsys, *extra)
+    report = json.loads(out)
+    assert code == 1 and "retrieval_blocked" in report["rejected"]["p1"][0]
+    assert report["datasets"] == {} and report["downloaded"] is False
+    assert not any("zenodo.org" in u for _, u in calls) and nothing_persisted()
+    patches = [c for c in calls if c[0] == "PATCH"]
+    assert len(patches) == (1 if extra else 0)          # dry run writes nothing to Notion
+
+
+def test_cli_fails_closed_when_the_manifest_is_missing(monkeypatch, capsys):
+    urlopen = mock.Mock(side_effect=AssertionError("Notion must not be queried without the manifest"))
+    code, out, err = run_cli(monkeypatch, urlopen, capsys, "--manifest", "no/such/manifest.json")
+    assert code == 2 and urlopen.call_count == 0 and nothing_persisted()
+
+
+def test_dry_run_through_cli_reads_metadata_only_and_downloads_nothing(monkeypatch, capsys):
+    row = page("p1", ds="open-set", rec="555", doi="10.5281/zenodo.555", name="f.csv")
+    calls = []
+    record = {"id": 555, "doi": "10.5281/zenodo.555",
+              "files": [{"key": "f.csv", "size": 3, "checksum": "md5:" + "0" * 32,
+                         "links": {"self": "https://zenodo.org/api/records/555/files/f.csv/content"}}]}
+
+    def urlopen(req, timeout=None):
+        url = req.full_url
+        calls.append((req.get_method(), url))
+        if url == "https://zenodo.org/api/records/555":
+            return ok(record)
+        if url.endswith("/query"):
+            return ok({"results": [row], "has_more": False})
+        raise AssertionError(f"unexpected request in dry run: {req.get_method()} {url}")
+
+    code, out, err = run_cli(monkeypatch, urlopen, capsys)
+    report = json.loads(out)
+    assert code == 0 and report["mode"] == "dry_run_metadata_only" and report["applied"] is False
+    assert report["datasets"] == {"open-set": "metadata_ok"} and report["downloaded"] is False
+    assert [m for m, _ in calls] == ["POST", "GET"]     # Notion query + record metadata, nothing else
+    assert nothing_persisted()
+
+
+@pytest.mark.parametrize("rec_id", ["023906585", "0023906585", "018076716"])
+@pytest.mark.parametrize("extra", [(), ("--apply",)])
+def test_leading_zero_spellings_of_a_blocked_record_never_reach_zenodo(monkeypatch, capsys, rec_id, extra):
+    row = page("p1", ds="x", rec=rec_id, doi=f"10.5281/zenodo.{rec_id}", name="f.csv")
+    calls = []
+
+    def urlopen(req, timeout=None):
+        calls.append(req.full_url)
+        if "zenodo.org" in req.full_url:
+            raise AssertionError("a blocked record must never reach Zenodo, whatever its spelling")
+        return ok({"results": [row], "has_more": False} if req.full_url.endswith("/query") else {})
+
+    code, out, err = run_cli(monkeypatch, urlopen, capsys, *extra)
+    report = json.loads(out)
+    assert code == 1 and "retrieval_blocked" in report["rejected"]["p1"][0]
+    assert not any("zenodo.org" in u for u in calls) and nothing_persisted()
+
+
+def test_an_extra_manifest_cannot_remove_the_repository_blocks(monkeypatch, capsys, tmp_path):
+    open_manifest = tmp_path / "open.json"
+    open_manifest.write_text(json.dumps({"schema_version": 1, "datasets": [{
+        "dataset_id": "gep-ufo-uap-2026-10", "record_id": "23906585", "doi": "10.5281/zenodo.23906585",
+        "files": [{"name": "f.csv"}]}]}), encoding="utf-8")                 # same record, NOT blocked
+    row = page("p1", ds="x", rec="23906585", doi="10.5281/zenodo.23906585", name="f.csv")
+
+    def urlopen(req, timeout=None):
+        if "zenodo.org" in req.full_url:
+            raise AssertionError("an extra manifest must not lift a repository block")
+        return ok({"results": [row], "has_more": False} if req.full_url.endswith("/query") else {})
+
+    code, out, err = run_cli(monkeypatch, urlopen, capsys, "--manifest", str(open_manifest))
+    assert code == 1 and "retrieval_blocked" in json.loads(out)["rejected"]["p1"][0]
+
+
+def test_record_ids_are_compared_in_one_canonical_spelling():
+    assert ns.canonical_record_id("023906585") == "23906585" and ns.canonical_record_id(" 23906585 ") == "23906585"
+    assert ns.canonical_record_id("0") == "0" and ns.canonical_record_id("00") == "0"
+    assert ns.canonical_record_id("２３９０６５８５") == "２３９０６５８５"   # non-ASCII digits: unchanged, fail validation later
+    blocked = ns.blocked_targets([{"dataset_id": "d", "record_id": "023906585", "retrieval_blocked": True,
+                                   "retrieval_blocked_reason": "r"}])
+    assert ("record", "23906585") in blocked

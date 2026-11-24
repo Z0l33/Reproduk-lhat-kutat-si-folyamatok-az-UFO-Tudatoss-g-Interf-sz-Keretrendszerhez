@@ -5,15 +5,23 @@ Design rules (see docs):
     ever trusted because Notion says 'verified'. Verification comes from retrieve_dataset().
   * Only rows in status 'submitted' are processed, every time from scratch.
   * The submitted SHA-256 is used as the pin, so a wrong claim makes the file 'failed'.
-  * Dry run is the default; the HTTP client is untested against the live Notion API.
+  * Rows naming a record or dataset_id that the repository manifest blocks (retrieval_blocked)
+    are rejected before any network call, in dry run and in apply mode alike.
+  * Dry run is the default and is metadata-only: it reads Zenodo record metadata, never
+    downloads a file, never writes provenance and never writes to Notion.
+  * The HTTP client is untested against the live Notion API.
 """
 from __future__ import annotations
 
 import json
 import urllib.request
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Protocol, Tuple
 
-from .zenodo import validate_entry
+from .zenodo import load_manifest, validate_entry
+
+# The repository manifest whose retrieval blocks every sync must honour (fail closed if missing).
+DEFAULT_MANIFEST = Path(__file__).resolve().parent.parent / "data" / "manifest" / "datasets.json"
 
 NOTION_VERSION = "2022-06-28"
 API = "https://api.notion.com/v1"
@@ -98,7 +106,46 @@ def parse_row(page: Dict[str, Any]) -> Dict[str, Any]:
     return row
 
 
-def rows_to_entries(rows: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], Dict[str, List[str]]]:
+def canonical_record_id(value: Any) -> str:
+    """One spelling per record: ASCII digits with leading zeros removed ('023906585' -> '23906585').
+
+    Anything that is not plain ASCII digits is returned unchanged (it fails validation later anyway).
+    """
+    text = str(value).strip()
+    if text.isascii() and text.isdigit():
+        return str(int(text))
+    return text
+
+
+def blocked_targets(manifest_entries: List[Dict[str, Any]]) -> Dict[Tuple[str, str], str]:
+    """(kind, value) -> reason for every manifest entry with retrieval_blocked=true.
+
+    kind is 'record' (Zenodo record ID) or 'dataset' (dataset_id); a row matching either is blocked.
+    """
+    blocked: Dict[Tuple[str, str], str] = {}
+    for entry in manifest_entries:
+        if entry.get("retrieval_blocked") is True:
+            reason = str(entry.get("retrieval_blocked_reason", "")).strip() or "blocked in manifest"
+            blocked[("record", canonical_record_id(entry.get("record_id")))] = reason
+            blocked[("dataset", str(entry.get("dataset_id")))] = reason
+    return blocked
+
+
+def load_blocked_targets(extra_manifest: Any = None) -> Dict[Tuple[str, str], str]:
+    """Blocks from the repository manifest, plus those of an optional extra manifest.
+
+    The repository's own manifest is ALWAYS read: an extra manifest can add blocks, never remove
+    them. Raises if either manifest is missing or invalid (fail closed).
+    """
+    blocked = blocked_targets(load_manifest(DEFAULT_MANIFEST))
+    if extra_manifest:
+        for key, reason in blocked_targets(load_manifest(extra_manifest)).items():
+            blocked.setdefault(key, reason)
+    return blocked
+
+
+def rows_to_entries(rows: List[Dict[str, Any]], blocked: Optional[Dict[Tuple[str, str], str]] = None
+                    ) -> Tuple[List[Dict[str, Any]], Dict[str, List[str]]]:
     """Turn parsed 'submitted' rows into manifest entries (one entry per dataset_id).
 
     Returns (entries, problems_by_page_id). A row with problems yields no entry and is never
@@ -125,6 +172,13 @@ def rows_to_entries(rows: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], D
         issues: List[str] = []
         if row.get("personal_data"):
             issues.append("row is flagged as containing personal data; rejected")
+        for kind, value in (("record", canonical_record_id(row["record_id"])),
+                            ("dataset", row["dataset_id"].strip().lower())):
+            reason = (blocked or {}).get((kind, value))
+            if reason:
+                issues.append(f"retrieval_blocked ({kind} {value} is blocked in the repository manifest: "
+                              f"{reason}); rejected, nothing checked or downloaded")
+                break
         entry = entries.get(row["dataset_id"])
         if entry and (entry["record_id"], entry["doi"]) != (row["record_id"], row["doi"]):
             issues.append("rows of one dataset_id disagree on record_id/doi")
@@ -231,37 +285,61 @@ class UrllibNotionClient:
 
 
 def sync(client: NotionClient, database_id: str, dest_dir: Any, provenance_dir: Any,
-         retriever: Any, *, apply: bool = False, run_url: Optional[str] = None) -> Dict[str, Any]:
-    """Process every 'submitted' row. With apply=False nothing is written to Notion (dry run).
+         retriever: Any, *, apply: bool = False, run_url: Optional[str] = None,
+         blocked: Optional[Dict[Tuple[str, str], str]] = None,
+         metadata_checker: Any = None) -> Dict[str, Any]:
+    """Process every 'submitted' row.
 
-    The retriever is ufo_pipeline.zenodo.retrieve_dataset (injected for tests). Provenance
-    records are written to provenance_dir either way; Notion is only a display of the result.
+    blocked: retrieval blocks to honour; by default they are read from the repository manifest
+    (fail closed: a missing or invalid manifest raises before Notion is queried).
+
+    Dry run (apply=False): metadata only. metadata_checker (default zenodo.check_record_metadata)
+    reads record metadata; the retriever is never called, nothing is downloaded, no provenance
+    file is written and nothing is written to Notion.
+
+    Apply (apply=True): the retriever (ufo_pipeline.zenodo.retrieve_dataset, injected for tests)
+    downloads and verifies; provenance is written and results are written back to Notion.
     """
-    from pathlib import Path
     from .provenance import load_json, write_json
 
+    if blocked is None:
+        blocked = load_blocked_targets()
     pages = client.query_submitted(database_id)
     parsed = [parse_row(p) for p in pages]
-    entries, problems = rows_to_entries(parsed)
-    report: Dict[str, Any] = {"rows": len(parsed), "rejected": problems, "datasets": {}}
+    entries, problems = rows_to_entries(parsed, blocked)
+    report: Dict[str, Any] = {"rows": len(parsed), "rejected": problems, "datasets": {},
+                              "mode": "apply" if apply else "dry_run_metadata_only", "downloaded": False}
     keys = row_keys(parsed)
     # a result is written back only to a row with a real page id; 'unidentified-row-<n>' keys are report-only
     updates: List[Tuple[str, Dict[str, Any]]] = [
         (pid, rejection_properties(issues)) for pid, issues in problems.items() if is_page_id(pid)]
+    if not apply:
+        if metadata_checker is None:
+            from .zenodo import check_record_metadata as metadata_checker
+        checks: Dict[str, Any] = {}
+        for entry in entries:
+            result = metadata_checker(entry)
+            checks[entry["dataset_id"]] = result
+            report["datasets"][entry["dataset_id"]] = result["status"]
+        report["metadata_checks"] = checks
+        report["updates"] = len(updates)   # what apply would write for rejected rows; not written now
+        report["applied"] = False
+        return report
+
     prov_dir = Path(provenance_dir)
     for entry in entries:
         path = prov_dir / f"{entry['dataset_id']}.json"
         existing = load_json(path) if path.exists() else None
         prov = retriever(entry, dest_dir, existing=existing)
         write_json(path, prov)
+        report["downloaded"] = True
         report["datasets"][entry["dataset_id"]] = prov["status"]
         for row, key in zip(parsed, keys):
             if row["dataset_id"] == entry["dataset_id"] and row["status"] == "submitted" \
                     and key not in problems and is_page_id(key):
                 updates.append((key, properties_from_provenance(prov, row["file_name"], run_url)))
     report["updates"] = len(updates)
-    report["applied"] = apply
-    if apply:
-        for pid, props in updates:
-            client.update_page(pid, props)
+    report["applied"] = True
+    for pid, props in updates:
+        client.update_page(pid, props)
     return report

@@ -2,7 +2,10 @@ name: notion-sync
 
 # Manual only. Verifies rows with Pipeline status = submitted in the Notion Submissions database.
 # Needs the repository secret NOTION_TOKEN (a Notion integration with access to that database).
-# Default is a dry run: provenance is written, Notion is NOT updated.
+# Default is a dry run and it is METADATA-ONLY: it reads Zenodo record metadata, downloads no file,
+# writes no provenance and does NOT update Notion. Rows naming a record or dataset_id that
+# data/manifest/datasets.json blocks (retrieval_blocked) are rejected before any network call,
+# in dry run and apply alike. Only apply downloads (non-blocked records) and writes to Notion.
 on:
   workflow_dispatch:
     inputs:
