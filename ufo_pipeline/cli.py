@@ -34,6 +34,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--dest", default="data/raw")
     p.add_argument("--provenance-dir", default="provenance")
     p.add_argument("--apply", action="store_true", help="write results back to Notion")
+    p.add_argument("--manifest", default=None,
+                   help="repository manifest whose retrieval blocks are honoured (default: the repo's own)")
     p.add_argument("--run-url")
 
     p = sub.add_parser("profile", help="structural profile of a CSV (counts only, no free text)")
@@ -76,9 +78,11 @@ def main(argv: Optional[List[str]] = None) -> int:
             if not token:
                 print("NOTION_TOKEN is not set", file=sys.stderr)
                 return 2
+            from .notion_sync import load_blocked_targets
+            blocked = load_blocked_targets(args.manifest)      # fail closed before Notion is queried
             report = sync(UrllibNotionClient(token), args.database_id, args.dest,
                           args.provenance_dir, retrieve_dataset, apply=args.apply,
-                          run_url=args.run_url)
+                          run_url=args.run_url, blocked=blocked)
             print(json.dumps(report, indent=2, sort_keys=True))
             return 1 if report["rejected"] or "failed" in report["datasets"].values() else 0
         if args.command == "gep-qa":

@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 
 from ufo_pipeline import notion_sync as ns
 
@@ -121,9 +122,14 @@ class SyncFlow(unittest.TestCase):
         def update_page(self, page_id, properties):
             self.updated.append((page_id, properties))
 
-    def run_sync(self, pages, apply):
+    def run_sync(self, pages, apply, blocked=None):
         import tempfile
-        calls = []
+        calls, checked = [], []
+
+        def checker(entry):
+            checked.append(entry["dataset_id"])
+            return {"dataset_id": entry["dataset_id"], "status": "metadata_ok", "downloaded": False,
+                    "errors": [], "files": [{"name": f["name"], "listed": True} for f in entry["files"]]}
 
         def retriever(entry, dest, existing=None):
             calls.append(entry["dataset_id"])
@@ -132,14 +138,37 @@ class SyncFlow(unittest.TestCase):
                                "api_checksum_verified": True, "errors": []} for f in entry["files"]]}
         client = self.Fake(pages)
         with tempfile.TemporaryDirectory() as d:
-            report = ns.sync(client, "db", d, d, retriever, apply=apply)
+            report = ns.sync(client, "db", d, d, retriever, apply=apply,
+                             blocked=blocked if blocked is not None else {}, metadata_checker=checker)
+            self.leftover = sorted(p.name for p in Path(d).iterdir())
+        self.checked = checked
         return report, client, calls
 
-    def test_dry_run_writes_nothing_to_notion(self):
+    def test_dry_run_is_metadata_only_no_download_no_provenance_no_notion_write(self):
         report, client, calls = self.run_sync([page()], apply=False)
         self.assertEqual(client.updated, [])
-        self.assertEqual(calls, ["demo-set"])
+        self.assertEqual(calls, [])                          # retriever (download) never called
+        self.assertEqual(self.checked, ["demo-set"])         # metadata checked instead
+        self.assertEqual(self.leftover, [])                  # no provenance or data file written
         self.assertFalse(report["applied"])
+        self.assertFalse(report["downloaded"])
+        self.assertEqual(report["mode"], "dry_run_metadata_only")
+        self.assertEqual(report["datasets"], {"demo-set": "metadata_ok"})
+
+    def test_row_for_a_blocked_record_is_rejected_in_dry_run_and_apply(self):
+        for apply in (False, True):
+            for key in (("record", "123"), ("dataset", "demo-set")):
+                report, client, calls = self.run_sync([page("p1")], apply=apply, blocked={key: "rights pending"})
+                self.assertEqual(calls, [], (apply, key))
+                self.assertEqual(self.checked, [], (apply, key))
+                self.assertEqual(self.leftover, [], (apply, key))
+                self.assertIn("retrieval_blocked", report["rejected"]["p1"][0])
+                self.assertEqual(report["datasets"], {})
+                written = dict(client.updated)
+                if apply:
+                    self.assertEqual(written["p1"][ns.P_STATUS]["select"]["name"], "failed")
+                else:
+                    self.assertEqual(written, {})
 
     def test_apply_updates_row_and_rejects_bad_rows_without_download(self):
         report, client, calls = self.run_sync([page("p1"), page("p2", ds="bad", personal=True)], apply=True)

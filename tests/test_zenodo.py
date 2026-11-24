@@ -216,3 +216,28 @@ class ManifestTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MetadataOnlyCheckTests(unittest.TestCase):
+    def test_metadata_check_never_downloads(self):
+        from ufo_pipeline.zenodo import check_record_metadata
+        client = FakeClient(record())
+        result = check_record_metadata(entry(), client)
+        self.assertEqual(client.downloads, [])
+        self.assertEqual(result["status"], "metadata_ok")
+        self.assertFalse(result["downloaded"])
+
+    def test_metadata_check_of_blocked_entry_makes_no_request(self):
+        from ufo_pipeline.zenodo import check_record_metadata
+        client = FakeClient(record())
+        calls = []
+        client.get_json = lambda url: calls.append(url) or record()
+        result = check_record_metadata(entry(retrieval_blocked=True, retrieval_blocked_reason="rights"), client)
+        self.assertEqual((calls, client.downloads, result["status"]), ([], [], "failed"))
+        self.assertEqual(result["errors"], ["retrieval_blocked: rights"])
+
+    def test_metadata_check_reports_missing_file(self):
+        from ufo_pipeline.zenodo import check_record_metadata
+        result = check_record_metadata(entry(files=[{"name": "absent.csv"}]), FakeClient(record()))
+        self.assertEqual(result["status"], "failed")
+        self.assertIn("file_not_in_record: absent.csv", result["errors"])
