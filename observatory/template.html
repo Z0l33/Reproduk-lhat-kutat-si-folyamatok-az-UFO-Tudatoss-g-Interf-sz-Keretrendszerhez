@@ -8,7 +8,7 @@
 @font-face{font-family:'JetBrains Mono';src:url('fonts/JetBrainsMono-Regular.woff') format('woff');font-weight:400 500;font-style:normal;font-display:swap}
 /* Layout: one centred column; ringed header, then status, three evidence columns, charts, risk, counters. Dark single look by request. */
 :root{
-  --bg:#070b1c; --panel:rgba(20,30,62,.62); --line:rgba(120,200,215,.18);
+  --bg:#080d1d; --panel:rgba(20,30,58,.72); --line:rgba(120,200,215,.18);
   --fg:#e6ecf7; --mute:#9aa8c7; --teal:#3fd0d0; --violet:#9b86f2; --gold:#e3c88a;
   --warn:#e3c88a; --warn-bg:rgba(227,200,138,.10); --bad:#f08a8a; --ok:#6fd6a6;
   --font-d:'Inter',system-ui,sans-serif; --font-b:'Inter',system-ui,sans-serif; --font-m:'JetBrains Mono',ui-monospace,monospace;
@@ -16,18 +16,18 @@
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 var(--font-b);
-  background-image:radial-gradient(1px 1px at 12% 18%,#fff8 50%,transparent 51%),radial-gradient(1px 1px at 78% 8%,#fff6 50%,transparent 51%),radial-gradient(1.5px 1.5px at 44% 30%,#bfe 50%,transparent 51%),radial-gradient(1px 1px at 90% 42%,#fff6 50%,transparent 51%),radial-gradient(1px 1px at 22% 62%,#fff5 50%,transparent 51%),radial-gradient(1px 1px at 63% 74%,#fff6 50%,transparent 51%),radial-gradient(ellipse at 50% -10%,#1b2a6a 0,transparent 60%);
+  background-image:radial-gradient(1px 1px at 12% 18%,#fff5 50%,transparent 51%),radial-gradient(1px 1px at 78% 8%,#fff4 50%,transparent 51%),radial-gradient(1px 1px at 63% 74%,#fff4 50%,transparent 51%),radial-gradient(ellipse at 50% -10%,#16225a 0,transparent 60%);
   background-attachment:fixed}
 .wrap{max-width:1040px;margin:0 auto;padding-block:20px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 header{position:relative;display:flex;gap:24px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding-block:28px 12px;overflow:hidden}
 header>div{min-width:0}
-.rings{position:absolute;right:-90px;top:-120px;width:380px;height:380px;pointer-events:none;opacity:.55}
+.rings{position:absolute;right:-90px;top:-120px;width:380px;height:380px;pointer-events:none;opacity:.3}
 h1{font:700 clamp(28px,5vw,46px)/1.08 var(--font-d);margin:0;letter-spacing:-.01em;text-wrap:balance;position:relative}
 h1 span{background:linear-gradient(90deg,var(--teal),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
 .sub{color:var(--mute);max-width:60ch;margin:10px 0 0;position:relative}
 .lang{display:flex;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--panel);position:relative}
-.lang button{font:500 13px var(--font-b);color:var(--mute);background:none;border:0;padding:6px 14px;border-radius:999px;cursor:pointer}
-.lang button[aria-pressed=true]{background:linear-gradient(90deg,#2a7f93,#5a4bb5);color:#fff}
+.lang button{font:500 13px var(--font-b);color:var(--mute);background:none;border:0;min-height:44px;min-width:44px;padding:6px 16px;border-radius:999px;cursor:pointer}
+.lang button[aria-pressed=true]{background:#2a5f8f;color:#fff}
 button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 h2{font:600 22px var(--font-d);margin:0 0 14px;text-wrap:balance}
 section{margin-top:40px}
@@ -59,9 +59,35 @@ ul{margin:8px 0 0;padding-left:18px}li{margin:4px 0;font-size:13.5px}
 td.num{text-align:right;white-space:nowrap}
 code{font:12.5px var(--font-m);color:var(--teal);overflow-wrap:anywhere}
 footer{margin-top:48px;color:var(--mute);font-size:12.5px;border-top:1px solid var(--line);padding-top:16px}
+
+.ic{width:24px;height:24px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ic.sol{fill:currentColor;stroke:none}
+.legends{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}.legends>*{min-width:0}
+.legends h3{font:600 16px var(--font-d);margin:0 0 4px}
+.lg{list-style:none;margin:10px 0 0;padding:0}.lg li{display:flex;gap:12px;align-items:flex-start;margin:0;padding:10px 0;border-top:1px solid var(--line);font-size:13.5px}
+.lg li>div{min-width:0}.lg .nm{font-weight:600;display:block}.lg .ds{color:var(--mute);display:block}
+.mk{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:34px;color:var(--teal)}
+.mk .no{font:500 11px var(--font-m);color:var(--mute)}
+.mkb{color:var(--violet)}
+.mk-a .ic{color:var(--teal)}
+.warnbox{border:1px solid rgba(227,200,138,.4);background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:10px 14px;margin-top:12px;font-size:13.5px}
+.ex{border:1px dashed var(--line);border-radius:12px;padding:14px 16px;margin-top:12px}
+.ex .tag{font:500 11px var(--font-m);letter-spacing:.1em;text-transform:uppercase;color:var(--gold)}
+.ex .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;font-size:13.5px}
+.chip{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:3px 10px 3px 6px}
+.t-h{display:flex;gap:8px;align-items:center}
 @media (prefers-reduced-motion:no-preference){.rings circle{animation:pulse 7s ease-in-out infinite}.rings circle:nth-child(2){animation-delay:-2s}.rings circle:nth-child(3){animation-delay:-4s}}
 @keyframes pulse{50%{opacity:.45}}
 </style>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<symbol id="a01" viewBox="0 0 24 24"><path d="M2 12c2-7 4-7 6 0s4 7 6 0 4-7 6 0"/></symbol>
+<symbol id="a02" viewBox="0 0 24 24"><path d="M12 4.500C11 2.800 8.400 2.700 7.200 4.200 5.200 4 3.800 5.600 4.100 7.300 2.600 8 2.400 10 3.500 11.100 2.800 12.700 3.700 14.300 5 14.800 5 16.600 6.600 17.800 8.300 17.300 8.900 18.500 10.300 19 12 18.200 13.700 19 15.100 18.500 15.700 17.300 17.400 17.800 19 16.600 19 14.800 20.300 14.300 21.200 12.700 20.500 11.100 21.600 10 21.400 8 19.900 7.300 20.200 5.600 18.800 4 16.800 4.200 15.600 2.700 13 2.800 12 4.500zM12 4.500v13.700M8 8.500c1.300 0 2.500.7 2.800 1.800M16 8.500c-1.300 0-2.500.7-2.800 1.800M7.500 13c1.300-.2 2.500.3 3.100 1.300M16.500 13c-1.300-.2-2.500.3-3.100 1.300M10 18.500c.3 1.300.3 2.300 0 3M14 18.500c-.3 1.300-.3 2.300 0 3"/></symbol>
+<symbol id="a03" viewBox="0 0 24 24"><path d="M12 2.500 21.500 12 12 21.500 2.500 12z"/></symbol>
+<symbol id="a04" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/><circle cx="12" cy="12" r="1" class="dot"/></symbol>
+<symbol id="b-fact" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="1.500" fill="currentColor" stroke="none"/></symbol>
+<symbol id="b-heur" viewBox="0 0 24 24"><path d="M12 4 21 20H3z" stroke-width="2.200"/></symbol>
+<symbol id="b-unv" viewBox="0 0 24 24"><path d="M12 3l7.800 4.500v9L12 21l-7.800-4.500v-9z" stroke-dasharray="3 2.500" stroke-width="2.200"/></symbol>
+</defs></svg>
 <div class="wrap">
 <header>
   <svg class="rings" viewBox="0 0 380 380" aria-hidden="true"><g fill="none" stroke="#3fd0d0" stroke-width="1"><circle cx="190" cy="190" r="60"/><circle cx="190" cy="190" r="110" stroke="#9b86f2"/><circle cx="190" cy="190" r="160" stroke="#e3c88a" stroke-opacity=".6"/><circle cx="190" cy="190" r="185" stroke-dasharray="2 8"/></g></svg>
@@ -70,6 +96,7 @@ footer{margin-top:48px;color:var(--mute);font-size:12.5px;border-top:1px solid v
 </header>
 <div class="banner" id="warn"></div>
 <section><h2 id="h-status"></h2><div class="status" id="status"></div><p class="note" id="status-note"></p></section>
+<section id="markers"><h2 id="h-mk"></h2><p class="note" id="mk-intro"></p><div class="legends"><div class="glass" id="legend-claim"></div><div class="glass" id="legend-status"></div></div><div class="warnbox" id="mk-04"></div><div class="ex" id="mk-ex"></div></section>
 <section><h2 id="h-ev"></h2><div class="three" id="ev"></div><p class="note" id="ev-note"></p></section>
 <section><h2 id="h-charts"></h2><div class="grid2" id="charts"></div></section>
 <section><h2 id="h-risk"></h2><div class="glass" id="risk"></div></section>
@@ -85,6 +112,14 @@ hu:{
  hstatus:'Valós státusz (2026-11-23, 17:10-kor)',
  hev:'Három szint, külön kezelve',hch:'Mért összesítések (QA-jelentés)',hrisk:'Újraazonosítási kockázatbecslés',hflags:'Szabályszámlálók (jelölés, nem hiba)',
  evnote:'A listák a jelentés angol szövegei (evidence_levels), változtatás nélkül.',
+
+ hmk:'Jelölési rendszer: két független jelölés',
+ mkintro:'Két külön rendszer, amely nem keveredik: az egyik azt jelöli, mit állít egy állítás; a másik azt, mennyire ellenőrzött az adat. Egy állítás mindkettőt viselheti. A jelölések tervezési javaslatok, nem jóváhagyott tudományos kategóriák.',
+ lgA:'A. Az állítás szintje',lgAd:'Mit állít az állítás. Alakja és száma állandó.',
+ a:[['01','Átélt élmény','A megfigyelő saját élménye.'],['02','Pszichológiai és neurobiológiai mechanizmus','Az élmény lehetséges pszichológiai vagy idegi magyarázata.'],['03','Metafizikai vagy ontológiai értelmezés','A valóság természetére vonatkozó értelmezés.'],['04','Külső fizikai esemény vagy önálló ágens','Állítás egy külső eseményről vagy ágensről.']],
+ lgB:'B. Az adat státusza',lgBd:'Mennyire ellenőrzött az adat. Alakja és szöveges címkéje van.',
+ n04:'A 04-es jelölés nem bizonyít külső fizikai eseményt, az állítás igazságát vagy nem emberi intelligencia jelenlétét; csak azt jelzi, mit állít az állítás.',
+ exTag:'Illusztráció, nem kutatási állítás',exTxt:'Séma-állítás (nem valós rekord): a szöveg helye.',exA:'Állítás szintje:',exB:'Adat státusza:',
  facts:'Tények',heur:'Heurisztikus találatok',unv:'Nem ellenőrzött feltevések',
  s:[['PR #7','Nyitott, nincs beolvasztva','warn','Invariáns-tesztek és reprodukálhatósági napló. A CI zöld, emberi átnézésre vár.'],
     ['Licenc','Nem azonosított','bad','A Zenodo gépi olvasata forrásinformáció, nem emberi megerősítés. Végleges licencállítás nincs.'],
@@ -107,6 +142,14 @@ en:{
  hstatus:'Actual status (as of 2026-11-23, 17:10)',
  hev:'Three levels, kept apart',hch:'Measured aggregates (QA report)',hrisk:'Re-identification risk estimate',hflags:'Rule counters (flags, not errors)',
  evnote:'The lists are the report’s own text (evidence_levels), unchanged.',
+
+ hmk:'Marking system: two independent marks',
+ mkintro:'Two separate systems that never merge: one marks what a claim asserts, the other how well the data is verified. A claim can carry both. The marks are design proposals, not approved scientific categories.',
+ lgA:'A. Claim level',lgAd:'What the claim asserts. Its shape and number are constant.',
+ a:[['01','Lived experience','The observer’s own experience.'],['02','Psychological and neurobiological mechanism','A possible psychological or neural explanation of the experience.'],['03','Metaphysical or ontological interpretation','An interpretation of the nature of reality.'],['04','External physical event or autonomous agent','A claim about an external event or agent.']],
+ lgB:'B. Data status',lgBd:'How well the data is verified. It has a shape and a text label.',
+ n04:'Mark 04 does not prove an external physical event, that the claim is true, or the presence of non-human intelligence; it only marks what the claim asserts.',
+ exTag:'Illustration, not a research claim',exTxt:'Placeholder claim (not a real record): text goes here.',exA:'Claim level:',exB:'Data status:',
  facts:'Facts',heur:'Heuristic hits',unv:'Unverified assumptions',
  s:[['PR #7','Open, not merged','warn','Invariant tests and a reproducibility log. CI green, awaiting human review.'],
     ['Licence','Not identified','bad','The Zenodo page read by machine is source information, not human confirmation. No final licence claim.'],
@@ -125,6 +168,8 @@ en:{
 }};
 const $=id=>document.getElementById(id), fmt=n=>n.toLocaleString('en-US').replace(/,/g,' ');
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+const ic=(id,c)=>`<svg class="ic ${c||''}" aria-hidden="true" focusable="false"><use href="#${id}"/></svg>`;
+const AI=['a01','a02','a03','a04'], BI=['b-fact','b-heur','b-unv'];
 function bars(items,max,cls){return '<div class="bars">'+items.map(([l,n])=>`<div class="bar"><span class="lab">${esc(l)}</span><div class="track"><div class="fill ${cls||''}" style="width:${Math.max(1.5,100*n/max)}%"></div></div><span class="num">${fmt(n)}</span></div>`).join('')+'</div>'}
 function render(lang){
   const t=T[lang]; document.documentElement.lang=lang;
@@ -132,9 +177,14 @@ function render(lang){
   $('sub').textContent=t.sub; $('warn').textContent=t.warn;
   $('h-status').textContent=t.hstatus; $('h-ev').textContent=t.hev; $('h-charts').textContent=t.hch; $('h-risk').textContent=t.hrisk; $('h-flags').textContent=t.hflags;
   $('status').innerHTML=t.s.map(([k,v,c,n])=>`<div class="glass"><div class="k">${k}</div><span class="pill p-${c}">${v}</span><p class="note">${n}</p></div>`).join('');
+  $('h-mk').textContent=t.hmk; $('mk-intro').textContent=t.mkintro; $('mk-04').textContent=t.n04;
+  $('legend-claim').innerHTML=`<h3>${t.lgA}</h3><p class="note">${t.lgAd}</p><ul class="lg">`+t.a.map(([n,nm,d],i)=>`<li><span class="mk mk-a">${ic(AI[i])}<span class="no">${n}</span></span><div><span class="nm">${nm}</span><span class="ds">${d}</span></div></li>`).join('')+'</ul>';
+  const bl=[t.facts,t.heur,t.unv];
+  $('legend-status').innerHTML=`<h3>${t.lgB}</h3><p class="note">${t.lgBd}</p><ul class="lg">`+bl.map((nm,i)=>`<li><span class="mk mkb">${ic(BI[i])}</span><div><span class="nm">${nm}</span></div></li>`).join('')+'</ul>';
+  $('mk-ex').innerHTML=`<span class="tag">${t.exTag}</span><p class="note">${t.exTxt}</p><div class="row"><span>${t.exA}</span><span class="chip">${ic('a01')}01</span><span class="chip">${ic('a02')}02</span><span>${t.exB}</span><span class="chip">${ic('b-unv')}${t.unv}</span></div>`;
   $('status-note').textContent=t.snote;
   const li=a=>'<ul>'+a.map(x=>`<li>${esc(x)}</li>`).join('')+'</ul>';
-  $('ev').innerHTML=`<div class="glass t-fact"><h3>${t.facts}</h3>${li(D.ev.facts)}</div><div class="glass t-heur"><h3>${t.heur}</h3>${li(D.ev.heuristic_hits)}</div><div class="glass t-unv"><h3>${t.unv}</h3>${li(D.ev.unverified_assumptions)}</div>`;
+  $('ev').innerHTML=`<div class="glass t-fact"><h3 class="t-h mkb">${ic('b-fact')}<span>${t.facts}</span></h3>${li(D.ev.facts)}</div><div class="glass t-heur"><h3 class="t-h mkb">${ic('b-heur')}<span>${t.heur}</span></h3>${li(D.ev.heuristic_hits)}</div><div class="glass t-unv"><h3 class="t-h mkb">${ic('b-unv')}<span>${t.unv}</span></h3>${li(D.ev.unverified_assumptions)}</div>`;
   $('ev-note').textContent=t.evnote;
   const pk=['full','year_month','year_only','missing'];
   const hen=Object.entries(D.hendry).sort((a,b)=>b[1]-a[1]);
