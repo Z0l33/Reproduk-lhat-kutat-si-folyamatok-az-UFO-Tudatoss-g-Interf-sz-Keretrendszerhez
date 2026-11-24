@@ -9,7 +9,7 @@ Current entries / Jelenlegi tételek:
 | dataset_id | Domain | Zenodo record | SHA-256 pin | Licence (Notion registry) |
 |---|---|---|---|---|
 | `gep-ufo-uap-2026-10` | GEP | 23906585 (v2026.10) | none (suspended) | Unverified |
-| `sddb-dreams-2025-12-28` | DREAMS | 18076716 (v2) | from local check, to be confirmed by `verify-datasets` | Unverified |
+| `sddb-dreams-2025-12-28` | DREAMS | 18076716 (v2) | from local check, to be confirmed by `verify-datasets` | Unverified (Zenodo deposit says CC BY 4.0; SDDb site says All Rights Reserved) |
 
 Listing a record here does not clear its reuse rights. Raw files stay out of the repository
 (`data/raw/` is git-ignored); reports hold aggregate counts only.
