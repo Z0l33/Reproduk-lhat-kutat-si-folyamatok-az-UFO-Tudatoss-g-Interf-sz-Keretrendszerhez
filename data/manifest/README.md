@@ -11,6 +11,12 @@ Current entries / Jelenlegi tételek:
 | `gep-ufo-uap-2026-10` | GEP | 23906585 (v2026.10) | none (suspended) | Unverified |
 | `sddb-dreams-2025-12-28` | DREAMS | 18076716 (v2) | from local check, to be confirmed by `verify-datasets` | Unverified (Zenodo deposit says CC BY 4.0; SDDb site says All Rights Reserved) |
 
+Both entries carry `"retrieval_blocked": true` with a reason. `fetch` (and therefore the
+`verify-datasets` and `profile-dataset` workflows) makes no Zenodo call and downloads nothing
+for a blocked entry; the run fails with `retrieval_blocked`. Remove the flag only after a
+documented, human rights decision, in its own reviewed PR. A test fails if either flag is removed.
+Mindkét tétel letöltése blokkolva van (`retrieval_blocked`) a jogtisztázásig.
+
 Listing a record here does not clear its reuse rights. Raw files stay out of the repository
 (`data/raw/` is git-ignored); reports hold aggregate counts only.
 A nyilvántartásba vétel nem jelent jogtisztázást; nyers fájl nem kerül a repóba.

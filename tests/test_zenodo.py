@@ -149,6 +149,34 @@ class RetrieveTests(unittest.TestCase):
         self.assertEqual(prov["files"][0]["manifest_checksum_status"], "mismatch")
 
 
+class RetrievalBlockTests(unittest.TestCase):
+    def test_blocked_entry_makes_no_request_and_downloads_nothing(self):
+        tmp = Path(tempfile.mkdtemp())
+        client = FakeClient(record())
+        calls = []
+        client.get_json = lambda url: calls.append(url) or record()
+        prov = retrieve_dataset(entry(retrieval_blocked=True, retrieval_blocked_reason="rights pending"),
+                                tmp / "raw", client)
+        self.assertEqual(prov["status"], "failed")
+        self.assertEqual(prov["errors"], ["retrieval_blocked: rights pending"])
+        self.assertEqual(calls, [])
+        self.assertEqual(client.downloads, [])
+        self.assertFalse((tmp / "raw").exists())
+
+    def test_block_flag_validation(self):
+        self.assertTrue(validate_entry(entry(retrieval_blocked="yes", retrieval_blocked_reason="x")))
+        self.assertTrue(validate_entry(entry(retrieval_blocked=True)))
+        self.assertTrue(validate_entry(entry(retrieval_blocked=True, retrieval_blocked_reason="  ")))
+        self.assertEqual(validate_entry(entry(retrieval_blocked=False)), [])
+
+    def test_repository_gep_and_dreams_stay_blocked(self):
+        # Lifting a block needs a documented rights decision; this test must be changed on purpose.
+        repo_manifest = Path(__file__).resolve().parent.parent / "data" / "manifest" / "datasets.json"
+        entries = {e["dataset_id"]: e for e in load_manifest(repo_manifest)}
+        for dataset_id in ("gep-ufo-uap-2026-10", "sddb-dreams-2025-12-28"):
+            self.assertIs(entries[dataset_id].get("retrieval_blocked"), True, dataset_id)
+
+
 class ManifestTests(unittest.TestCase):
     def test_entry_validation(self):
         self.assertEqual(validate_entry(entry()), [])

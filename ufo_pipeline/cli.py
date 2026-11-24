@@ -113,6 +113,9 @@ def main(argv: Optional[List[str]] = None) -> int:
                 prov = retrieve_dataset(entry, Path(args.dest) / entry["dataset_id"], existing=existing)
                 write_json(prov_path, prov)
                 print(f"{entry['dataset_id']}: {prov['status']}")
+                for err in prov["errors"]:
+                    if err.startswith("retrieval_blocked"):
+                        print(f"  BLOCKED, nothing downloaded: {err}", file=sys.stderr)
                 accepted = ("verified", "unpinned") if args.allow_unpinned else ("verified",)
                 failures += prov["status"] not in accepted
             return 1 if failures else 0

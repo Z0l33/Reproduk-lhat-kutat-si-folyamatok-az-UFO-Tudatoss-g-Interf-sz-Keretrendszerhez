@@ -71,6 +71,11 @@ def validate_entry(entry: Dict[str, Any]) -> List[str]:
         problems.append("doi must be a version DOI of the form 10.5281/zenodo.<record_id>")
     elif RECORD_ID_RE.match(record_id) and match.group(1) != record_id:
         problems.append("doi does not match record_id (use the version DOI of this exact record)")
+    blocked = entry.get("retrieval_blocked")
+    if blocked is not None and not isinstance(blocked, bool):
+        problems.append("retrieval_blocked must be true or false")
+    elif blocked and not str(entry.get("retrieval_blocked_reason", "")).strip():
+        problems.append("retrieval_blocked needs a non-empty retrieval_blocked_reason")
     files = entry.get("files")
     if not isinstance(files, list) or not files:
         problems.append("files must be a non-empty list")
@@ -129,9 +134,9 @@ def retrieve_dataset(entry: Dict[str, Any], dest_dir: PathLike, client: Optional
 
     A file is 'verified' only if (a) the download matches the checksum Zenodo reports and
     (b) its SHA-256 equals the SHA-256 pinned in the manifest. Without a pin the status is
-    'unpinned' and the dataset is NOT considered verified.
+    'unpinned' and the dataset is NOT considered verified. An entry with
+    retrieval_blocked=true is never contacted or downloaded; its status is 'failed'.
     """
-    client = client or UrllibClient()
     now = now or utc_now_iso()
     dest_dir = Path(dest_dir)
     prov: Dict[str, Any] = {
@@ -155,6 +160,11 @@ def retrieve_dataset(entry: Dict[str, Any], dest_dir: PathLike, client: Optional
     if problems:
         prov["errors"] = [f"invalid_manifest_entry: {p}" for p in problems]
         return prov
+    if entry.get("retrieval_blocked"):
+        # Rights gate: no API call, no download. Lifting it is a deliberate manifest change.
+        prov["errors"] = [f"retrieval_blocked: {entry['retrieval_blocked_reason']}"]
+        return prov
+    client = client or UrllibClient()
 
     try:
         record = client.get_json(prov["api_url"])
