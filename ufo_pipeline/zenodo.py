@@ -22,6 +22,8 @@ from .provenance import (PROVENANCE_SCHEMA_VERSION, RECORD_ID_RE, SHA256_RE, VER
 API_ROOT = "https://zenodo.org/api/records/"
 WEB_ROOT = "https://zenodo.org/records/"
 ALLOWED_DOWNLOAD_PREFIX = "https://zenodo.org/"
+# Audit A1: no file larger than this is downloaded unless the manifest entry sets max_download_bytes.
+DEFAULT_MAX_DOWNLOAD_BYTES = 100 * 1024 * 1024
 
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}\Z")
 
@@ -32,9 +34,13 @@ class ZenodoError(Exception):
     pass
 
 
+class DownloadTooLarge(ZenodoError):
+    """The server sent more bytes than the declared size; the download was aborted."""
+
+
 class HttpClient(Protocol):
     def get_json(self, url: str) -> Dict[str, Any]: ...
-    def download(self, url: str, dest: Path) -> None: ...
+    def download(self, url: str, dest: Path, max_bytes: int) -> None: ...
 
 
 class UrllibClient:
@@ -50,10 +56,19 @@ class UrllibClient:
         with urllib.request.urlopen(req, timeout=self.timeout) as response:  # noqa: S310
             return json.loads(response.read().decode("utf-8"))
 
-    def download(self, url: str, dest: Path) -> None:
+    def download(self, url: str, dest: Path, max_bytes: int) -> None:
+        """Stream to dest; abort as soon as more than max_bytes arrive (never fills the disk)."""
         req = urllib.request.Request(url, headers={"User-Agent": self.headers["User-Agent"]})
+        written = 0
         with urllib.request.urlopen(req, timeout=self.timeout) as response, open(dest, "wb") as out:  # noqa: S310
-            shutil.copyfileobj(response, out, length=1024 * 1024)
+            while True:
+                chunk = response.read(1024 * 1024)
+                if not chunk:
+                    break
+                written += len(chunk)
+                if written > max_bytes:
+                    raise DownloadTooLarge(f"server sent more than the declared {max_bytes} bytes; aborted")
+                out.write(chunk)
 
 
 def validate_entry(entry: Dict[str, Any]) -> List[str]:
@@ -76,6 +91,9 @@ def validate_entry(entry: Dict[str, Any]) -> List[str]:
         problems.append("retrieval_blocked must be true or false")
     elif blocked and not str(entry.get("retrieval_blocked_reason", "")).strip():
         problems.append("retrieval_blocked needs a non-empty retrieval_blocked_reason")
+    limit = entry.get("max_download_bytes")
+    if limit is not None and (isinstance(limit, bool) or not isinstance(limit, int) or limit <= 0):
+        problems.append("max_download_bytes must be a positive integer")
     files = entry.get("files")
     if not isinstance(files, list) or not files:
         problems.append("files must be a non-empty list")
@@ -230,7 +248,8 @@ def retrieve_dataset(entry: Dict[str, Any], dest_dir: PathLike, client: Optional
     dest_dir.mkdir(parents=True, exist_ok=True)
     index = _file_index(record)
     for spec in entry["files"]:
-        result = _retrieve_file(prov, spec, index.get(spec["name"]), dest_dir, client)
+        result = _retrieve_file(prov, spec, index.get(spec["name"]), dest_dir, client,
+                                entry.get("max_download_bytes", DEFAULT_MAX_DOWNLOAD_BYTES))
         prov["files"].append(result)
         if result["status"] != "failed" and not prov["first_retrieved_at"]:
             prov["first_retrieved_at"] = now
@@ -244,8 +263,20 @@ def retrieve_dataset(entry: Dict[str, Any], dest_dir: PathLike, client: Optional
     return prov
 
 
+def _declared_size(value: Any) -> Optional[int]:
+    """The size Zenodo declares for a file, or None if it is missing or not a non-negative integer."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value if value >= 0 else None
+    if isinstance(value, str) and value.isascii() and value.isdigit():
+        return int(value)
+    return None
+
+
 def _retrieve_file(prov: Dict[str, Any], spec: Dict[str, Any], meta: Optional[Dict[str, Any]],
-                   dest_dir: Path, client: HttpClient) -> Dict[str, Any]:
+                   dest_dir: Path, client: HttpClient,
+                   max_download_bytes: int = DEFAULT_MAX_DOWNLOAD_BYTES) -> Dict[str, Any]:
     name = spec["name"]
     result: Dict[str, Any] = {
         "name": name, "size": None, "sha256": None, "api_checksum": None,
@@ -262,10 +293,19 @@ def _retrieve_file(prov: Dict[str, Any], spec: Dict[str, Any], meta: Optional[Di
         result["errors"].append(f"unexpected_download_host: {url}")
         return result
 
+    declared = _declared_size(meta.get("size"))
+    if declared is None:
+        result["errors"].append(f"size_unknown: record declares no valid size ({meta.get('size')!r}); not downloaded")
+        return result
+    if declared > max_download_bytes:
+        result["errors"].append(f"size_exceeds_limit: declared {declared} bytes > limit {max_download_bytes}; "
+                                "not downloaded")
+        return result
+
     final_path = dest_dir / name
     part_path = dest_dir / (name + ".part")
     try:
-        client.download(url, part_path)
+        client.download(url, part_path, max_bytes=declared)
     except Exception as exc:
         part_path.unlink(missing_ok=True)
         result["errors"].append(f"download_failed: {exc}")
@@ -282,8 +322,8 @@ def _retrieve_file(prov: Dict[str, Any], spec: Dict[str, Any], meta: Optional[Di
     result["sha256"] = hashes["sha256"]
     result["size"] = part_path.stat().st_size
 
-    if meta.get("size") is not None and int(meta["size"]) != result["size"]:
-        result["errors"].append(f"size_mismatch: API {meta['size']} vs downloaded {result['size']}")
+    if declared != result["size"]:
+        result["errors"].append(f"size_mismatch: API {declared} vs downloaded {result['size']}")
     if api_algorithm:
         result["api_checksum_verified"] = digests_equal(hashes[api_algorithm], api_digest)
         if not result["api_checksum_verified"]:

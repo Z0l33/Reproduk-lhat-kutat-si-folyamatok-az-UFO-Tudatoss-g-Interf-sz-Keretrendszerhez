@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 from ufo_pipeline.provenance import dataset_is_verified, validate_provenance
-from ufo_pipeline.zenodo import ZenodoError, load_manifest, retrieve_dataset, validate_entry
+from ufo_pipeline.zenodo import DownloadTooLarge, ZenodoError, load_manifest, retrieve_dataset, validate_entry
 
 FAKE_ID = "0"
 FAKE_DOI = "10.5281/zenodo.0"
@@ -28,9 +28,13 @@ class FakeClient:
             raise OSError("offline")
         return self.record
 
-    def download(self, url, dest):
+    def download(self, url, dest, max_bytes):
         self.downloads.append(url)
-        Path(dest).write_bytes(self.payloads.get(url, CONTENT))
+        self.max_bytes = max_bytes
+        data = self.payloads.get(url, CONTENT)
+        if len(data) > max_bytes:              # same contract as UrllibClient: abort, never write past the cap
+            raise DownloadTooLarge("fake: too many bytes")
+        Path(dest).write_bytes(data)
 
 
 def record(**over):
@@ -93,7 +97,8 @@ class RetrieveTests(unittest.TestCase):
 
     def test_corrupted_download_fails_source_checksum(self):
         url = "https://zenodo.org/api/records/0/files/data.csv/content"
-        prov, _ = self.run_it(payloads={url: b"corrupted"}, ent=entry(files=[{"name": "data.csv"}]))
+        corrupted = bytes(b ^ 0xFF for b in CONTENT)       # same length, different bytes
+        prov, _ = self.run_it(payloads={url: corrupted}, ent=entry(files=[{"name": "data.csv"}]))
         self.assertEqual(prov["status"], "failed")
         self.assertIn("source_checksum_mismatch", prov["files"][0]["errors"])
         self.assertFalse((self.dest / "data.csv").exists())
@@ -241,3 +246,80 @@ class MetadataOnlyCheckTests(unittest.TestCase):
         result = check_record_metadata(entry(files=[{"name": "absent.csv"}]), FakeClient(record()))
         self.assertEqual(result["status"], "failed")
         self.assertIn("file_not_in_record: absent.csv", result["errors"])
+
+
+
+class DownloadSizeLimitTests(unittest.TestCase):
+    """Audit finding A1: no size limit; the declared size was only compared after the full download."""
+
+    def setUp(self):
+        self.dest = Path(tempfile.mkdtemp())
+
+    def test_declared_size_above_default_limit_is_not_downloaded(self):
+        from ufo_pipeline.zenodo import DEFAULT_MAX_DOWNLOAD_BYTES
+        rec = record(files=[{"key": "data.csv", "size": DEFAULT_MAX_DOWNLOAD_BYTES + 1, "checksum": MD5,
+                             "links": {"self": "https://zenodo.org/api/records/0/files/data.csv/content"}}])
+        client = FakeClient(rec)
+        prov = retrieve_dataset(entry(), self.dest, client)
+        self.assertEqual(client.downloads, [])
+        self.assertTrue(prov["files"][0]["errors"][0].startswith("size_exceeds_limit"))
+        self.assertEqual(prov["status"], "failed")
+
+    def test_entry_limit_overrides_default(self):
+        client = FakeClient(record())
+        prov = retrieve_dataset(entry(max_download_bytes=len(CONTENT) - 1), self.dest, client)
+        self.assertEqual(client.downloads, [])
+        self.assertTrue(prov["files"][0]["errors"][0].startswith("size_exceeds_limit"))
+
+    def test_missing_or_invalid_declared_size_is_not_downloaded(self):
+        for bad in (None, "n/a", -1, True, 1.5, "12a"):
+            rec = record(files=[{"key": "data.csv", "size": bad, "checksum": MD5,
+                                 "links": {"self": "https://zenodo.org/api/records/0/files/data.csv/content"}}])
+            client = FakeClient(rec)
+            prov = retrieve_dataset(entry(), self.dest, client)          # must not raise (old code: ValueError)
+            self.assertEqual(client.downloads, [], bad)
+            self.assertTrue(prov["files"][0]["errors"][0].startswith("size_unknown"), bad)
+            self.assertEqual(list(self.dest.iterdir()), [], bad)        # no .part left behind
+
+    def test_download_cap_equals_declared_size(self):
+        client = FakeClient(record())
+        retrieve_dataset(entry(), self.dest, client)
+        self.assertEqual(client.max_bytes, len(CONTENT))
+
+    def test_oversized_stream_is_aborted_and_leaves_no_file(self):
+        url = "https://zenodo.org/api/records/0/files/data.csv/content"
+        client = FakeClient(record(), payloads={url: CONTENT + b"extra"})
+        prov = retrieve_dataset(entry(), self.dest, client)
+        self.assertEqual(prov["status"], "failed")
+        self.assertTrue(prov["files"][0]["errors"][0].startswith("download_failed"))
+        self.assertEqual(list(self.dest.rglob("*")), [])
+
+    def test_urllib_client_stops_reading_past_the_cap(self):
+        import io
+        from unittest import mock
+        from ufo_pipeline.zenodo import UrllibClient
+
+        class Stream(io.BytesIO):
+            reads = 0
+
+            def read(self, n=-1):
+                Stream.reads += 1
+                return super().read(n)
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        body = Stream(b"x" * (5 * 1024 * 1024))                         # 5 MB offered
+        dest = self.dest / "f.part"
+        with mock.patch("urllib.request.urlopen", return_value=body), self.assertRaises(DownloadTooLarge):
+            UrllibClient().download("https://zenodo.org/x", dest, max_bytes=10)
+        self.assertLessEqual(dest.stat().st_size, 10)                    # nothing past the cap reached the disk
+        self.assertEqual(Stream.reads, 1)                                # stopped after the first chunk
+
+    def test_manifest_limit_must_be_a_positive_integer(self):
+        for bad in (0, -5, True, "100", 1.5):
+            self.assertTrue(any("max_download_bytes" in p for p in validate_entry(entry(max_download_bytes=bad))), bad)
+        self.assertEqual(validate_entry(entry(max_download_bytes=10)), [])
