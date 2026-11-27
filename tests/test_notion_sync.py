@@ -250,3 +250,130 @@ class SubmitterFieldsAreNeverWritten(unittest.TestCase):
         finally:
             ns.rejection_properties = original
         self.assertEqual(Client.updated, [])
+
+
+class NotionTextDecoding(unittest.TestCase):
+    def test_content_only_title_and_rich_text(self):
+        p = page()
+        for prop in p["properties"].values():
+            for key in ("title", "rich_text"):
+                if key in prop:
+                    prop[key] = [{"type": "text", "text": {"content": item["plain_text"]}}
+                                 for item in prop[key]]
+        entries, problems = ns.rows_to_entries(rows(p))
+        self.assertEqual(problems, {})
+        self.assertEqual(entries[0]["dataset_id"], "demo-set")
+
+    def test_conflicting_title_rejected(self):
+        p = page()
+        p["properties"][ns.P_ID]["title"] = [
+            {"type": "text", "plain_text": "demo-set", "text": {"content": "other"}}]
+        entries, problems = ns.rows_to_entries(rows(p))
+        self.assertEqual(entries, [])
+        self.assertIn("p1", problems)
+
+    def test_personal_data_still_rejected(self):
+        p = page(personal=True)
+        p["properties"][ns.P_ID]["title"] = [
+            {"type": "text", "text": {"content": "demo-set"}}]
+        entries, problems = ns.rows_to_entries(rows(p))
+        self.assertEqual(entries, [])
+        self.assertIn("personal data", problems["p1"][0])
+
+
+class NotionTextDecodingEdgeCases(unittest.TestCase):
+    """Edge cases for _decode_text / parse_row. An undecodable value must never be read as empty:
+    for 'Claimed SHA-256' that would silently drop the pin and turn a pinned check into 'unpinned'."""
+
+    def assert_rejected(self, p, field):
+        row = ns.parse_row(p)
+        self.assertIn(field, row["malformed"])
+        entries, problems = ns.rows_to_entries([row])
+        self.assertEqual(entries, [])
+        self.assertIn("p1", problems)
+        self.assertIn(field, problems["p1"][0])
+
+    # --- pin downgrade (the reason for fail-closed decoding) ---
+    def test_conflicting_claim_is_rejected_not_unpinned(self):
+        p = page(claim=SHA)
+        p["properties"][ns.P_CLAIM]["rich_text"] = [
+            {"type": "text", "plain_text": SHA, "text": {"content": "b" * 64}}]
+        self.assert_rejected(p, ns.P_CLAIM)
+
+    def test_undecodable_claim_segment_is_rejected_not_unpinned(self):
+        for bad in (["not-an-object"], [{"type": "mention"}], [{"plain_text": None}], [{"plain_text": 5}]):
+            p = page(claim=SHA)
+            p["properties"][ns.P_CLAIM]["rich_text"] = bad
+            self.assert_rejected(p, ns.P_CLAIM)
+
+    def test_wrong_container_type_is_rejected(self):
+        for bad in ({"rich_text": None}, {"rich_text": "abc"}, {"select": {"name": "x"}}, "abc", 7):
+            p = page(claim=SHA)
+            p["properties"][ns.P_CLAIM] = bad
+            self.assert_rejected(p, ns.P_CLAIM)
+
+    # --- every decoded field is covered, not just the title ---
+    def test_conflict_in_each_text_field_is_rejected(self):
+        for field, key in ((ns.P_ID, "title"), (ns.P_RECORD, "rich_text"), (ns.P_DOI, "rich_text"),
+                           (ns.P_FILE, "rich_text")):
+            p = page()
+            p["properties"][field][key] = [{"type": "text", "plain_text": "x", "text": {"content": "y"}}]
+            self.assert_rejected(p, field)
+
+    def test_non_string_content_next_to_plain_text_is_rejected(self):
+        p = page()
+        p["properties"][ns.P_ID]["title"] = [{"type": "text", "plain_text": "demo-set", "text": {"content": 1}}]
+        self.assert_rejected(p, ns.P_ID)
+
+    def test_content_only_segment_of_other_type_is_rejected(self):
+        p = page()
+        p["properties"][ns.P_ID]["title"] = [{"type": "equation", "text": {"content": "demo-set"}}]
+        self.assert_rejected(p, ns.P_ID)
+
+    # --- legitimate shapes still decode ---
+    def test_multi_segment_values_are_joined(self):
+        p = page(claim=SHA)
+        p["properties"][ns.P_ID]["title"] = [{"plain_text": "demo"}, {"plain_text": "-set"}]
+        p["properties"][ns.P_CLAIM]["rich_text"] = [
+            {"type": "text", "text": {"content": SHA[:32]}}, {"plain_text": SHA[32:]}]
+        entries, problems = ns.rows_to_entries(rows(p))
+        self.assertEqual(problems, {})
+        self.assertEqual(entries[0]["dataset_id"], "demo-set")
+        self.assertEqual(entries[0]["files"][0]["sha256"], SHA)
+
+    def test_matching_plain_text_and_content_decode(self):
+        p = page()
+        p["properties"][ns.P_ID]["title"] = [{"type": "text", "plain_text": "demo-set",
+                                               "text": {"content": "demo-set"}}]
+        entries, problems = ns.rows_to_entries(rows(p))
+        self.assertEqual(problems, {})
+
+    def test_mention_with_plain_text_decodes(self):
+        p = page()
+        p["properties"][ns.P_ID]["title"] = [{"type": "mention", "plain_text": "demo-set", "mention": {}}]
+        _, problems = ns.rows_to_entries(rows(p))
+        self.assertEqual(problems, {})
+
+    def test_absent_or_empty_claim_still_means_no_pin(self):
+        for claim_prop in (None, {"rich_text": []}, {"rich_text": [{"plain_text": ""}]}):
+            p = page()
+            if claim_prop is None:
+                del p["properties"][ns.P_CLAIM]
+            else:
+                p["properties"][ns.P_CLAIM] = claim_prop
+            entries, problems = ns.rows_to_entries(rows(p))
+            self.assertEqual(problems, {}, claim_prop)
+            self.assertNotIn("sha256", entries[0]["files"][0])
+
+    def test_decoded_values_are_not_normalised(self):
+        for ds in ("Demo-Set", " demo-set", "demo-set\n"):
+            p = page()
+            p["properties"][ns.P_ID]["title"] = [{"type": "text", "text": {"content": ds}}]
+            entries, problems = ns.rows_to_entries(rows(p))
+            self.assertEqual(entries, [], repr(ds))
+            self.assertIn("p1", problems)
+
+    def test_malformed_field_on_non_submitted_row_is_ignored(self):
+        p = page(status="verified")
+        p["properties"][ns.P_CLAIM]["rich_text"] = ["bad"]
+        self.assertEqual(ns.rows_to_entries(rows(p)), ([], {}))
