@@ -120,3 +120,24 @@ independent final audit PASS (incl. provenance artifacts). Isolated integration 
 
 Open after closure: OA-1; automatic licence check (separate task); run URL on rejection
 write-backs (separate task). Production apply: not authorised.
+
+## Known discrepancy: integration-test tag (open)
+
+Recorded 2026-11-27, 03:43 (UTC+1).
+
+| Item | Intended | Actual (read back via GitHub API and `git ls-remote`) |
+|---|---|---|
+| Tag `notion-sync-integration-test-2026-11-27` | → `e5c64d8fbb7e86658c1c48d5812359940a775742` (tested integration commit) | → `387498630be73f85c5a44e7d05edef177f10f784` (final `main`, merge of PR #22); lightweight tag |
+
+- Code content is identical: `ufo_pipeline/`, `tests/`, `.github/`, `data/` at `3874986` equal those
+  at `e5c64d8`. The audit result is not affected.
+- What is not yet achieved: the tag does not preserve the commit `e5c64d8` itself. That commit is
+  currently reachable only from branch `integration/pr20-pr21`.
+- Correction attempts from the authoring session (force push of the tag; GitHub API) were refused
+  by its network policy (HTTP 403). Correction is deferred, by the maintainer's decision; the
+  project continues.
+- **Until the tag points to `e5c64d8` and has been read back, the branches
+  `integration/pr20-pr21`, `fix/notion-text-decoding` and `fix/notion-personal-flag-fail-closed`
+  must not be deleted.**
+- Correction (maintainer or a session with tag write access): delete the tag, recreate it on
+  `e5c64d8fbb7e86658c1c48d5812359940a775742`, read it back, then delete the three branches.
