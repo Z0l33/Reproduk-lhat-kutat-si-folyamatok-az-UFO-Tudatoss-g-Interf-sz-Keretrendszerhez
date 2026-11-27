@@ -250,3 +250,32 @@ class SubmitterFieldsAreNeverWritten(unittest.TestCase):
         finally:
             ns.rejection_properties = original
         self.assertEqual(Client.updated, [])
+
+
+class NotionTextDecoding(unittest.TestCase):
+    def test_content_only_title_and_rich_text(self):
+        p = page()
+        for prop in p["properties"].values():
+            for key in ("title", "rich_text"):
+                if key in prop:
+                    prop[key] = [{"type": "text", "text": {"content": item["plain_text"]}}
+                                 for item in prop[key]]
+        entries, problems = ns.rows_to_entries(rows(p))
+        self.assertEqual(problems, {})
+        self.assertEqual(entries[0]["dataset_id"], "demo-set")
+
+    def test_conflicting_title_rejected(self):
+        p = page()
+        p["properties"][ns.P_ID]["title"] = [
+            {"type": "text", "plain_text": "demo-set", "text": {"content": "other"}}]
+        entries, problems = ns.rows_to_entries(rows(p))
+        self.assertEqual(entries, [])
+        self.assertIn("p1", problems)
+
+    def test_personal_data_still_rejected(self):
+        p = page(personal=True)
+        p["properties"][ns.P_ID]["title"] = [
+            {"type": "text", "text": {"content": "demo-set"}}]
+        entries, problems = ns.rows_to_entries(rows(p))
+        self.assertEqual(entries, [])
+        self.assertIn("personal data", problems["p1"][0])
