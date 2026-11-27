@@ -40,30 +40,43 @@ PROTECTED_FIELDS = frozenset({P_ID, P_RECORD, P_DOI, P_FILE, P_CLAIM, P_PERSONAL
 PIPELINE_FIELDS = frozenset({P_STATUS, P_SHA, P_SIZE, P_SRC, P_AT, P_RUN, P_NOTES})
 
 
-def _text(prop: Any) -> str:
-    """Plain text of a Notion title / rich_text property value (REST API shape)."""
+def _decode_text(prop: Any) -> Optional[str]:
+    """Plain text of a Notion title / rich_text property value (REST API shape).
+
+    Returns "" for an absent property or an empty value, and None when the value is present but cannot
+    be decoded unambiguously (wrong JSON type, a non-object segment, a non-string plain_text, or a
+    text.content that disagrees with plain_text). None must never be read as "empty": callers treat it
+    as a malformed property so the row is rejected (fail closed).
+    """
+    if prop is None:
+        return ""
     if not isinstance(prop, dict):
-        return ""
-    parts = prop.get("title") if "title" in prop else prop.get("rich_text")
+        return None
+    if "title" in prop:
+        parts = prop.get("title")
+    elif "rich_text" in prop:
+        parts = prop.get("rich_text")
+    else:
+        return None
     if not isinstance(parts, list):
-        return ""
+        return None
     chunks = []
     for part in parts:
         if not isinstance(part, dict):
-            return ""
+            return None
         plain = part.get("plain_text")
         nested = part.get("text")
         content = nested.get("content") if isinstance(nested, dict) else None
         if "plain_text" in part:
             if not isinstance(plain, str):
-                return ""
+                return None
             if content is not None and (not isinstance(content, str) or content != plain):
-                return ""
+                return None
             chunks.append(plain)
         elif part.get("type") == "text" and isinstance(content, str):
             chunks.append(content)
         else:
-            return ""
+            return None
     return "".join(chunks)
 
 
@@ -115,13 +128,20 @@ def parse_row(page: Dict[str, Any]) -> Dict[str, Any]:
             return False
         return bool(value.get("checkbox"))
 
+    def text(name: str) -> str:
+        value = _decode_text(props.get(name))
+        if value is None:   # present but undecodable: never read as empty (an empty claim would drop the pin)
+            malformed.append(name)
+            return ""
+        return value
+
     row = {
         "page_id": page.get("id"),
-        "dataset_id": _text(props.get(P_ID)),
-        "record_id": _text(props.get(P_RECORD)),
-        "doi": _text(props.get(P_DOI)),
-        "file_name": _text(props.get(P_FILE)),
-        "claimed_sha256": _text(props.get(P_CLAIM)),
+        "dataset_id": text(P_ID),
+        "record_id": text(P_RECORD),
+        "doi": text(P_DOI),
+        "file_name": text(P_FILE),
+        "claimed_sha256": text(P_CLAIM),
         "personal_data": checkbox(P_PERSONAL),
         "status": select(P_STATUS),
         "decision": select(P_DECISION),
