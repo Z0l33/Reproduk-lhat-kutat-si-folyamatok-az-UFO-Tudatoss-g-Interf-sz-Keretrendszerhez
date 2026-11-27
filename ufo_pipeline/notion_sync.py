@@ -132,14 +132,25 @@ def parse_row(page: Dict[str, Any]) -> Dict[str, Any]:
             return None
         return None if sel is None else sel.get("name")
 
+    missing: List[str] = []
+
     def checkbox(name: str) -> bool:
-        value = props.get(name)
-        if value is None:
-            return False
-        if not isinstance(value, dict):
+        """Fail closed: anything but a real boolean checkbox value counts as 'may contain personal data'.
+
+        Absence is decided by key presence (an explicit null is malformed, not missing). A 'type' key is
+        optional (test fixtures omit it), but if present it must be 'checkbox'. bool() is never applied to
+        the raw value, so 0, "", "false" or 1 are malformed rather than silently read.
+        """
+        if name not in props:
+            missing.append(name)
+            return True
+        value = props[name]
+        if (not isinstance(value, dict)
+                or ("type" in value and value["type"] != "checkbox")
+                or not isinstance(value.get("checkbox"), bool)):
             malformed.append(name)
-            return False
-        return bool(value.get("checkbox"))
+            return True
+        return value["checkbox"]
 
     def text(name: str, kind: str = "rich_text") -> str:
         if name not in props:   # absent: allowed, reads as empty (e.g. no claimed SHA-256 -> no pin)
@@ -162,6 +173,7 @@ def parse_row(page: Dict[str, Any]) -> Dict[str, Any]:
         "decision": select(P_DECISION),
     }
     row["malformed"] = sorted(set(malformed))   # properties with an unexpected JSON type; never trusted
+    row["missing"] = sorted(set(missing))       # required properties absent from the page (personal-data flag only)
     return row
 
 
@@ -224,6 +236,9 @@ def rows_to_entries(rows: List[Dict[str, Any]], blocked: Optional[Dict[Tuple[str
         if bad and (row.get("status") == "submitted" or P_STATUS in bad or "properties" in bad):
             problems[key] = [f"unexpected type in Notion propert{'y' if len(bad) == 1 else 'ies'}: "
                              + ", ".join(bad) + "; row rejected"]
+            continue
+        if row.get("missing") and row.get("status") == "submitted":
+            problems[key] = ["required Notion property missing: " + ", ".join(row["missing"]) + "; row rejected"]
             continue
         if row.get("status") != "submitted":
             continue
