@@ -1,106 +1,104 @@
 # notion-sync: isolated integration test log
 
-Status: **in progress, not complete.** Merge of PR #20 and PR #21 stays on HOLD until the
-metadata and write-back phases below have run and passed. Production: HOLD (unchanged).
-GEP and SDDb: `retrieval_blocked` (unchanged).
+Status (2026-11-27): **isolated integration test PASSED** on `integration/pr20-pr21` at
+`e5c64d8`. Merge of PR #20 and PR #21 still waits for the final audit and the maintainer's
+approval. Production: HOLD (untouched). Live (non-TEST) Notion database: untouched.
+GEP and SDDb: `retrieval_blocked` (unchanged). OA-1: open.
 
 ## Test environment
 
 | Item | Value |
 |---|---|
-| Notion database | `UFO Pipeline TEST – Submissions v1.4` (`4246cb55-c9f4-812a-b024-e7816c719c3b`), private, synthetic data only |
-| Token | repository secret `NOTION_TOKEN` (never printed; masked in logs) |
-| Workflow | `.github/workflows/notion-sync.yml`, `workflow_dispatch`, `permissions: contents: read` |
-| Code under test | branch `integration/pr20-pr21` = `main` + PR #20 (`fix/notion-personal-flag-fail-closed`) + PR #21 (`fix/notion-text-decoding`) |
+| Notion database | `UFO Pipeline TEST – Submissions v1.4` (`4246cb55-c9f4-812a-b024-e7816c719c3b`), private, synthetic test rows only |
+| Token | repository secret `NOTION_TOKEN` (masked in logs, never printed) |
+| Workflow | `.github/workflows/notion-sync.yml`, `workflow_dispatch`, `permissions: contents: read` (no repository writes) |
+| Code under test | `integration/pr20-pr21` = `main` + PR #20 (`fix/notion-personal-flag-fail-closed`, `3a6d497`) + PR #21 (`fix/notion-text-decoding`, `2510184`) |
+| Test record | Zenodo **12772944** "Pingüinos de Palmer", version DOI `10.5281/zenodo.12772944`, licence **CC0 1.0** (Zenodo record page), one file `pinguinos.csv`, 15 616 bytes, md5 `e51d5df0daa7c44c132e14e456dcf363`; penguin measurements, no data about people |
 
-## Runs so far (all dry run, metadata-only, nothing written to Notion)
+## Code changes under test
 
-| Run | Code | Submitted rows | Result |
-|---|---|---|---|
-| 45922879238 | `main` | 4 | all rejected, incl. `dataset_id must be a lowercase slug` — title not decoded (the bug PR #21 addresses) |
-| 45924733809 | `main` | 0 | empty report: no row was in status `submitted` at that time (rows had been set to `failed` outside this workflow between 01:29 and 01:49 UTC+1; the writer is not identified) |
-| 45925708507 | PR #21 (before edge-case commits) | 3 | title decoded; personal-data row rejected; all 3 rejected for empty record ID / DOI (expected: the synthetic rows have none) |
-| 45926151643 | `integration/pr20-pr21` | 3 | same as above — the two fixes work together; personal-data flag (PR #20) and decoding (PR #21) both effective |
+### PR #20
+Personal-data flag fails closed when missing, null or wrongly typed. Static audit: PASS.
 
-Exit code 1 on these runs is by design: `notion-sync` exits 1 whenever a row is rejected.
+### PR #21 — Notion text decoding
+1. Original commits: decode `text.content` when `plain_text` is absent; reject conflicting values.
+2. Edge-case hardening (`99ffe89`, `2836111`): undecodable values are malformed, never `""`.
+   Before, an undecodable `Claimed SHA-256` dropped the pin silently (row checked unpinned).
+3. Audit round R21 (regression tests first — 8 of them fail on the previous code — then the fix, ending at `2510184`):
+   - **R21-01** absent text property → `""` (no claim = no pin, allowed); present `null` → malformed.
+   - **R21-02** a `text` key must be an object with a string `content`; `null`/missing content → malformed.
+   - **R21-03** each field must use its schema container (`Dataset ID`: `title`, all others: `rich_text`);
+     both containers present, or a `type` naming another type → malformed.
 
-Before run 45925708507 the three synthetic `*-submitted` rows were set back to `submitted`
-(Notion TEST database only, approved by the maintainer).
-
-## PR #21 edge-case hardening
-
-Finding: with PR #21 as first written, a present but undecodable text value (conflicting
-`plain_text`/`text.content`, non-object segment, non-string `plain_text`, wrong container type)
-was read as `""`. For `Claimed SHA-256` that silently dropped the pin, so a row that claimed a
-checksum would have been checked **unpinned** instead of rejected (fail open).
-
-Fix (commits `99ffe89` tests, `2836111` fix on `fix/notion-text-decoding`): `_decode_text`
-returns `None` for undecodable values; `parse_row` marks the property as malformed and a
-submitted row is rejected. Absent properties and empty values still read as `""`.
-The 13 new tests fail on the previous PR #21 code (6 failing) and pass with the fix.
-
-Note: the edge cases were derived from the code; the reviewer's own list of flagged edge cases
-was not available in the repository or on the PR. If it names cases not covered here, they are
-still open.
+Static audit of the R21 commits: pending (final audit).
 
 ## CI (GitHub Actions, Python 3.10 / 3.11 / 3.12 / 3.13)
 
 | Commit | Branch | Result |
 |---|---|---|
 | `3a6d497` | PR #20 | 4/4 pass |
-| `2836111` | PR #21 incl. edge cases | 4/4 pass |
-| `27cd778` | `integration/pr20-pr21` | 4/4 pass |
+| `2510184` | PR #21 (incl. R21-01..03) | 4/4 pass |
+| `e5c64d8` | `integration/pr20-pr21` | 4/4 pass |
 
-Locally (Python 3.13): 456 tests pass on the integration branch.
+Locally (Python 3.13): 468 tests pass on the integration branch.
 
-## Prepared, not yet executed: metadata and write-back phase
+## Runs
 
-New Notion rows are approval-gated. Nothing below has been inserted or run.
+Exit code 1 means at least one row was rejected or failed (by design).
 
-### Test record
+| # | Run | Code | Mode | Rows | Result |
+|---|---|---|---|---|---|
+| 1 | 45922879238 | `main` | dry | 4 | all rejected incl. `dataset_id must be a lowercase slug` — title not decoded (bug fixed by PR #21) |
+| 2 | 45924733809 | `main` | dry | 0 | no `submitted` rows at that time (set to `failed` outside this workflow; writer not identified) |
+| 3 | 45925708507 | PR #21 (early) | dry | 3 | title decoded; personal-data row rejected; 3 synthetic rows rejected for empty record ID / DOI (expected) |
+| 4 | 45926151643 | integration (pre-R21) | dry | 3 | same as 3 — both fixes effective together |
+| 5 | 45926782146 | integration `e5c64d8` | dry | 5 | both Zenodo rows `metadata_ok` (file listed, size 15616, md5 as on the record page); 3 synthetic rows rejected; `applied: false`, `downloaded: false` |
+| 6 | 45926914739 | integration `e5c64d8` | **apply** | 5 | `test-v14-zenodo-unpinned` → `unpinned`; `test-v14-zenodo-wrongpin` → `failed` (`pinned_sha256_mismatch`); 3 synthetic rows → `failed` with rejection notes; 5 updates |
+| 7 | 45927007173 | integration `e5c64d8` | **apply** | 1 | `test-v14-zenodo-pinned` → `verified`; 1 update; exit 0 |
+| 8 | 45927051943 | integration `e5c64d8` | dry | 0 | no `submitted` rows left — correct; exit 0 |
 
-Zenodo record **12772944** — "Pingüinos de Palmer" (Palmer penguins data, Spanish translation
-from the R package `datos`), version DOI `10.5281/zenodo.12772944`, licence **CC0 1.0**, one file
-`pinguinos.csv` (15.6 kB, md5 `e51d5df0daa7c44c132e14e456dcf363`). Content: measurements of
-penguins; no data about people. Read from the public Zenodo web page on 2026-11-27; the API could
-not be reached from the authoring environment, so the version-DOI / record-ID match is confirmed
-only by the dry run itself. SHA-256 is not published by Zenodo and is therefore not yet known.
+Notion changes made by hand for the test (TEST database only, approved): the three synthetic
+`*-submitted` rows reset to `submitted` before run 3; rows `test-v14-zenodo-unpinned`,
+`test-v14-zenodo-wrongpin` added before run 5; `test-v14-zenodo-pinned` added before run 7 with
+the SHA-256 written back in run 6 as its claim.
 
-### Rows to add (after approval)
+## Verification of results (read back from Notion after each apply)
 
-| Dataset ID | Zenodo record ID | Version DOI | File name | Claimed SHA-256 | Personal data | Status |
+| Row | Status | Checked SHA-256 | Size | Source checksum | Run URL | Notes |
 |---|---|---|---|---|---|---|
-| `test-v14-zenodo-unpinned` | `12772944` | `10.5281/zenodo.12772944` | `pinguinos.csv` | *(empty)* | no | `submitted` |
-| `test-v14-zenodo-wrongpin` | `12772944` | `10.5281/zenodo.12772944` | `pinguinos.csv` | `000…0` (64 zeros) | no | `submitted` |
+| zenodo-unpinned | `unpinned` | `7b478d89…7b82f8` | 15616 | ok | run 6 | — |
+| zenodo-wrongpin | `failed` | `7b478d89…7b82f8` | 15616 | ok | run 6 | `pinned_sha256_mismatch` |
+| zenodo-pinned | `verified` | `7b478d89…7b82f8` | 15616 | ok | run 7 | — |
+| synthetic `*-submitted` (3) | `failed` | — | — | — | — | rejection reasons |
 
-Both rows use one record but different dataset IDs; they must not share a dataset ID
-(rows of one dataset_id with the same file name would be rejected as duplicates).
+Full SHA-256 of `pinguinos.csv`: `7b478d894910876d434127ae860a398343f2d2643b3b4221549fa49f4d7b82f8`.
 
-### Steps and expected results
-
-1. **Dry run** on `integration/pr20-pr21` (`apply=false`).
-   Expected: both new rows `metadata_ok` (record lists `pinguinos.csv`); the three synthetic rows
-   rejected as before; `applied: false`, `downloaded: false`; Notion unchanged.
-2. **Apply** on `integration/pr20-pr21` (`apply=true`) — writes to the TEST database only.
-   Expected: `test-v14-zenodo-unpinned` → `unpinned` with `Checked SHA-256`, size and
-   `Source checksum = ok`; `test-v14-zenodo-wrongpin` → `failed` (pin mismatch);
-   the three synthetic rows → `failed` with notes; only pipeline-owned properties change;
-   provenance appears only as the workflow artifact (no repository write).
-3. **Pinned check**: add a third row `test-v14-zenodo-pinned` with the SHA-256 written back in
-   step 2 as claim, apply again. Expected: `verified`.
-4. Re-run the dry run: expected no `submitted` rows left (empty report is correct here).
-
-Abort criteria: any write to a non-pipeline property, any request to a blocked record, any
-download in dry run, any write outside the TEST database → stop, keep merge on HOLD.
+Checked and confirmed:
+- Only pipeline-owned properties changed (`Pipeline status`, `Checked SHA-256`, `Checked size`,
+  `Source checksum`, `Checked at`, `Pipeline run URL`, `Pipeline notes`). Submitter/maintainer fields
+  (`Dataset ID`, record ID, DOI, file name, `Claimed SHA-256`, `Contains personal data`,
+  `Source / note`, `Maintainer decision`) unchanged on every row.
+- Dry runs wrote nothing and downloaded nothing.
+- Rows not in `submitted` (e.g. `test-v14-*-verified`, `test-v14-true-pending`) were never processed.
+- Personal-data rows rejected in every run.
+- No blocked record (GEP, SDDb) was contacted.
+- Provenance was produced only as a workflow artifact (run 6: 1328 bytes, run 7: 655 bytes);
+  no repository write (`contents: read`).
 
 ## Remaining audit limitations
 
-- **OA-1** remains a documented open audit limitation (unchanged by this work).
-- PR #21: root cause of the original decoding failure is not confirmed from a raw Notion REST
-  response; the fix accepts both observed shapes conservatively.
-- PR #21 edge-case commits have not yet had an independent review.
-- Metadata (`metadata_checks`) and write-back paths have never run against live services;
-  the HTTP clients are covered only by unit tests until phase 2 runs.
-- Who set the synthetic rows to `failed` between runs 45922879238 and 45924733809 is unknown;
-  it was not this workflow (dry run does not write).
-- Live (non-TEST) Notion database and Production were not touched and remain on HOLD.
+- **OA-1** remains open (unchanged by this work).
+- **Provenance content not inspected**: the artifacts exist, but their contents could not be
+  downloaded from the test environment (artifact storage host blocked by its network policy).
+  To be checked by downloading the `provenance` artifact of runs 45926914739 and 45927007173.
+- The SHA-256 was computed by the pipeline itself; run 7 confirms consistency, not an independent
+  hash. Independent anchor: Zenodo's md5 matched (`Source checksum = ok`).
+- Licence is checked by policy (record page: CC0 1.0), not by code: the pipeline has no licence gate.
+- Rejection write-backs do not set `Pipeline run URL` (only notes and status) — by current design,
+  noted for review.
+- PR #21: the root cause of the original decoding failure is not confirmed from a raw Notion REST
+  response; the decoder accepts both observed shapes and rejects anything ambiguous.
+- R21-01..03 commits: final static audit pending.
+- The writer that set the synthetic rows to `failed` between runs 1 and 2 is not identified
+  (not this workflow; dry runs do not write).
+- Only the TEST database was exercised; the live database and Production remain on HOLD.
