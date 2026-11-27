@@ -377,3 +377,99 @@ class NotionTextDecodingEdgeCases(unittest.TestCase):
         p = page(status="verified")
         p["properties"][ns.P_CLAIM]["rich_text"] = ["bad"]
         self.assertEqual(ns.rows_to_entries(rows(p)), ([], {}))
+
+
+class NotionTextDecodingAudit21(unittest.TestCase):
+    """Audit findings R21-01..R21-03 (PR #21 re-review)."""
+
+    def assert_rejected(self, p, field):
+        row = ns.parse_row(p)
+        self.assertIn(field, row["malformed"])
+        entries, problems = ns.rows_to_entries([row])
+        self.assertEqual(entries, [])
+        self.assertIn(field, problems["p1"][0])
+
+    def assert_accepted(self, p):
+        entries, problems = ns.rows_to_entries(rows(p))
+        self.assertEqual(problems, {})
+        return entries
+
+    # R21-01: absent optional field is allowed; present-but-null is malformed
+    def test_r21_01_absent_claim_is_allowed(self):
+        p = page()
+        del p["properties"][ns.P_CLAIM]
+        self.assertNotIn("sha256", self.assert_accepted(p)[0]["files"][0])
+
+    def test_r21_01_null_claim_is_malformed(self):
+        p = page(claim=SHA)
+        p["properties"][ns.P_CLAIM] = None
+        self.assert_rejected(p, ns.P_CLAIM)
+
+    def test_r21_01_null_in_every_text_field_is_malformed(self):
+        for field in (ns.P_ID, ns.P_RECORD, ns.P_DOI, ns.P_FILE, ns.P_CLAIM):
+            p = page()
+            p["properties"][field] = None
+            self.assert_rejected(p, field)
+
+    # R21-02: missing text.content vs explicit null / wrong type
+    def test_r21_02_null_content_next_to_plain_text_is_malformed(self):
+        p = page(claim=SHA)
+        p["properties"][ns.P_CLAIM]["rich_text"] = [{"type": "text", "plain_text": SHA, "text": {"content": None}}]
+        self.assert_rejected(p, ns.P_CLAIM)
+
+    def test_r21_02_text_object_without_content_is_malformed(self):
+        p = page(claim=SHA)
+        p["properties"][ns.P_CLAIM]["rich_text"] = [{"type": "text", "plain_text": SHA, "text": {}}]
+        self.assert_rejected(p, ns.P_CLAIM)
+
+    def test_r21_02_non_object_text_is_malformed(self):
+        for bad in (None, "x", 1, []):
+            p = page(claim=SHA)
+            p["properties"][ns.P_CLAIM]["rich_text"] = [{"type": "text", "plain_text": SHA, "text": bad}]
+            self.assert_rejected(p, ns.P_CLAIM)
+
+    def test_r21_02_plain_text_without_text_key_still_decodes(self):
+        p = page(claim=SHA)
+        p["properties"][ns.P_CLAIM]["rich_text"] = [{"type": "mention", "plain_text": SHA, "mention": {}}]
+        self.assertEqual(self.assert_accepted(p)[0]["files"][0]["sha256"], SHA)
+
+    # R21-03: container must be the expected one, unambiguous, and consistent with "type"
+    def test_r21_03_both_containers_rejected(self):
+        p = page()
+        p["properties"][ns.P_ID] = {"title": [{"plain_text": "demo-set"}], "rich_text": [{"plain_text": "demo-set"}]}
+        self.assert_rejected(p, ns.P_ID)
+        p = page(claim=SHA)
+        p["properties"][ns.P_CLAIM] = {"rich_text": [{"plain_text": SHA}], "title": []}
+        self.assert_rejected(p, ns.P_CLAIM)
+
+    def test_r21_03_wrong_container_for_field_rejected(self):
+        p = page()
+        p["properties"][ns.P_ID] = {"rich_text": [{"plain_text": "demo-set"}]}
+        self.assert_rejected(p, ns.P_ID)
+        p = page(claim=SHA)
+        p["properties"][ns.P_CLAIM] = {"title": [{"plain_text": SHA}]}
+        self.assert_rejected(p, ns.P_CLAIM)
+
+    def test_r21_03_type_contradicting_container_rejected(self):
+        p = page()
+        p["properties"][ns.P_ID] = {"type": "rich_text", "title": [{"plain_text": "demo-set"}]}
+        self.assert_rejected(p, ns.P_ID)
+        p = page(claim=SHA)
+        p["properties"][ns.P_CLAIM] = {"type": "number", "rich_text": [{"plain_text": SHA}]}
+        self.assert_rejected(p, ns.P_CLAIM)
+
+    def test_r21_03_rest_shape_with_matching_type_accepted(self):
+        p = page(claim=SHA)
+        p["properties"][ns.P_ID] = {"id": "title", "type": "title", "title": [
+            {"type": "text", "text": {"content": "demo-set", "link": None}, "plain_text": "demo-set",
+             "annotations": {}, "href": None}]}
+        p["properties"][ns.P_CLAIM] = {"id": "abc", "type": "rich_text", "rich_text": [
+            {"type": "text", "text": {"content": SHA, "link": None}, "plain_text": SHA}]}
+        entries = self.assert_accepted(p)
+        self.assertEqual((entries[0]["dataset_id"], entries[0]["files"][0]["sha256"]), ("demo-set", SHA))
+
+    def test_r21_03_container_value_not_a_list_rejected(self):
+        for bad in (None, {}, "demo-set"):
+            p = page()
+            p["properties"][ns.P_ID] = {"title": bad}
+            self.assert_rejected(p, ns.P_ID)
