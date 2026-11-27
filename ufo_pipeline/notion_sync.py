@@ -40,14 +40,57 @@ PROTECTED_FIELDS = frozenset({P_ID, P_RECORD, P_DOI, P_FILE, P_CLAIM, P_PERSONAL
 PIPELINE_FIELDS = frozenset({P_STATUS, P_SHA, P_SIZE, P_SRC, P_AT, P_RUN, P_NOTES})
 
 
-def _text(prop: Any) -> str:
-    """Plain text of a Notion title / rich_text property value (REST API shape)."""
+_CONTAINERS = ("title", "rich_text")
+
+
+def _decode_text(prop: Any, kind: str) -> Optional[str]:
+    """Plain text of a PRESENT Notion title / rich_text property value (REST API shape).
+
+    kind is the container the schema expects for this field ("title" or "rich_text"). Returns the text
+    ("" for an empty list), or None when the value cannot be decoded unambiguously. None must never be
+    read as "empty": parse_row marks the property as malformed and a submitted row is rejected.
+    An ABSENT property is handled by the caller; an explicit null value arrives here and is None.
+
+    Rejected (None): a non-object value (incl. null); a value without the expected container, with both
+    containers, or whose "type" names another type; a container that is not a list; a segment that is
+    not an object; a non-string plain_text; a "text" key that is not an object or lacks a string
+    "content" (an explicit null content is malformed, not absent); content that disagrees with
+    plain_text; a segment with neither plain_text nor a text-type content.
+    """
+    if kind not in _CONTAINERS:
+        raise ValueError(f"unknown text container {kind!r}")
     if not isinstance(prop, dict):
-        return ""
-    parts = prop.get("title") if "title" in prop else prop.get("rich_text")
+        return None
+    other = "rich_text" if kind == "title" else "title"
+    if kind not in prop or other in prop:
+        return None
+    if "type" in prop and prop["type"] != kind:
+        return None
+    parts = prop[kind]
     if not isinstance(parts, list):
-        return ""
-    return "".join(str(p.get("plain_text", "")) for p in parts if isinstance(p, dict))
+        return None
+    chunks = []
+    for part in parts:
+        if not isinstance(part, dict):
+            return None
+        content: Optional[str] = None
+        if "text" in part:
+            nested = part["text"]
+            if not isinstance(nested, dict) or not isinstance(nested.get("content"), str):
+                return None
+            content = nested["content"]
+        if "plain_text" in part:
+            plain = part["plain_text"]
+            if not isinstance(plain, str):
+                return None
+            if content is not None and content != plain:
+                return None
+            chunks.append(plain)
+        elif part.get("type") == "text" and content is not None:
+            chunks.append(content)
+        else:
+            return None
+    return "".join(chunks)
 
 
 UNIDENTIFIED = "unidentified-row-"
@@ -109,13 +152,22 @@ def parse_row(page: Dict[str, Any]) -> Dict[str, Any]:
             return True
         return value["checkbox"]
 
+    def text(name: str, kind: str = "rich_text") -> str:
+        if name not in props:   # absent: allowed, reads as empty (e.g. no claimed SHA-256 -> no pin)
+            return ""
+        value = _decode_text(props[name], kind)   # present, incl. explicit null
+        if value is None:   # present but undecodable: never read as empty (an empty claim would drop the pin)
+            malformed.append(name)
+            return ""
+        return value
+
     row = {
         "page_id": page.get("id"),
-        "dataset_id": _text(props.get(P_ID)),
-        "record_id": _text(props.get(P_RECORD)),
-        "doi": _text(props.get(P_DOI)),
-        "file_name": _text(props.get(P_FILE)),
-        "claimed_sha256": _text(props.get(P_CLAIM)),
+        "dataset_id": text(P_ID, "title"),
+        "record_id": text(P_RECORD),
+        "doi": text(P_DOI),
+        "file_name": text(P_FILE),
+        "claimed_sha256": text(P_CLAIM),
         "personal_data": checkbox(P_PERSONAL),
         "status": select(P_STATUS),
         "decision": select(P_DECISION),
