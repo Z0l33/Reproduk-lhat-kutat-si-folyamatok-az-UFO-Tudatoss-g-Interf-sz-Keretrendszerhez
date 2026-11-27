@@ -40,40 +40,53 @@ PROTECTED_FIELDS = frozenset({P_ID, P_RECORD, P_DOI, P_FILE, P_CLAIM, P_PERSONAL
 PIPELINE_FIELDS = frozenset({P_STATUS, P_SHA, P_SIZE, P_SRC, P_AT, P_RUN, P_NOTES})
 
 
-def _decode_text(prop: Any) -> Optional[str]:
-    """Plain text of a Notion title / rich_text property value (REST API shape).
+_CONTAINERS = ("title", "rich_text")
 
-    Returns "" for an absent property or an empty value, and None when the value is present but cannot
-    be decoded unambiguously (wrong JSON type, a non-object segment, a non-string plain_text, or a
-    text.content that disagrees with plain_text). None must never be read as "empty": callers treat it
-    as a malformed property so the row is rejected (fail closed).
+
+def _decode_text(prop: Any, kind: str) -> Optional[str]:
+    """Plain text of a PRESENT Notion title / rich_text property value (REST API shape).
+
+    kind is the container the schema expects for this field ("title" or "rich_text"). Returns the text
+    ("" for an empty list), or None when the value cannot be decoded unambiguously. None must never be
+    read as "empty": parse_row marks the property as malformed and a submitted row is rejected.
+    An ABSENT property is handled by the caller; an explicit null value arrives here and is None.
+
+    Rejected (None): a non-object value (incl. null); a value without the expected container, with both
+    containers, or whose "type" names another type; a container that is not a list; a segment that is
+    not an object; a non-string plain_text; a "text" key that is not an object or lacks a string
+    "content" (an explicit null content is malformed, not absent); content that disagrees with
+    plain_text; a segment with neither plain_text nor a text-type content.
     """
-    if prop is None:
-        return ""
+    if kind not in _CONTAINERS:
+        raise ValueError(f"unknown text container {kind!r}")
     if not isinstance(prop, dict):
         return None
-    if "title" in prop:
-        parts = prop.get("title")
-    elif "rich_text" in prop:
-        parts = prop.get("rich_text")
-    else:
+    other = "rich_text" if kind == "title" else "title"
+    if kind not in prop or other in prop:
         return None
+    if "type" in prop and prop["type"] != kind:
+        return None
+    parts = prop[kind]
     if not isinstance(parts, list):
         return None
     chunks = []
     for part in parts:
         if not isinstance(part, dict):
             return None
-        plain = part.get("plain_text")
-        nested = part.get("text")
-        content = nested.get("content") if isinstance(nested, dict) else None
+        content: Optional[str] = None
+        if "text" in part:
+            nested = part["text"]
+            if not isinstance(nested, dict) or not isinstance(nested.get("content"), str):
+                return None
+            content = nested["content"]
         if "plain_text" in part:
+            plain = part["plain_text"]
             if not isinstance(plain, str):
                 return None
-            if content is not None and (not isinstance(content, str) or content != plain):
+            if content is not None and content != plain:
                 return None
             chunks.append(plain)
-        elif part.get("type") == "text" and isinstance(content, str):
+        elif part.get("type") == "text" and content is not None:
             chunks.append(content)
         else:
             return None
@@ -139,8 +152,10 @@ def parse_row(page: Dict[str, Any]) -> Dict[str, Any]:
             return True
         return value["checkbox"]
 
-    def text(name: str) -> str:
-        value = _decode_text(props.get(name))
+    def text(name: str, kind: str = "rich_text") -> str:
+        if name not in props:   # absent: allowed, reads as empty (e.g. no claimed SHA-256 -> no pin)
+            return ""
+        value = _decode_text(props[name], kind)   # present, incl. explicit null
         if value is None:   # present but undecodable: never read as empty (an empty claim would drop the pin)
             malformed.append(name)
             return ""
@@ -148,7 +163,7 @@ def parse_row(page: Dict[str, Any]) -> Dict[str, Any]:
 
     row = {
         "page_id": page.get("id"),
-        "dataset_id": text(P_ID),
+        "dataset_id": text(P_ID, "title"),
         "record_id": text(P_RECORD),
         "doi": text(P_DOI),
         "file_name": text(P_FILE),
