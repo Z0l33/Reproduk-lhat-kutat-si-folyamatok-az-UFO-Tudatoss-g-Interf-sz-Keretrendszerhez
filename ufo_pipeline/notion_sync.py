@@ -47,7 +47,24 @@ def _text(prop: Any) -> str:
     parts = prop.get("title") if "title" in prop else prop.get("rich_text")
     if not isinstance(parts, list):
         return ""
-    return "".join(str(p.get("plain_text", "")) for p in parts if isinstance(p, dict))
+    chunks = []
+    for part in parts:
+        if not isinstance(part, dict):
+            return ""
+        plain = part.get("plain_text")
+        nested = part.get("text")
+        content = nested.get("content") if isinstance(nested, dict) else None
+        if "plain_text" in part:
+            if not isinstance(plain, str):
+                return ""
+            if content is not None and (not isinstance(content, str) or content != plain):
+                return ""
+            chunks.append(plain)
+        elif part.get("type") == "text" and isinstance(content, str):
+            chunks.append(content)
+        else:
+            return ""
+    return "".join(chunks)
 
 
 UNIDENTIFIED = "unidentified-row-"
